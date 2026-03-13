@@ -19,8 +19,9 @@
     "start:dev:wait": "npx wait-on -i 1000 http://localhost:9100"
   },
   "subtree": {
-    "repo": "https://github.com/kubeflow/model-registry.git",
-    "branch": "main",
+    "DO_NOT_MERGE_OVERRIDDEN_FOR_PR": "https://github.com/kubeflow/model-registry/pull/2338",
+    "repo": "https://github.com/Taj010/model-registry.git",
+    "branch": "manage-columns",
     "src": "clients/ui",
     "target": "upstream",
     "commit": "426e616d6ecf47a9f7f40201b628df6b24f8e6e7"
