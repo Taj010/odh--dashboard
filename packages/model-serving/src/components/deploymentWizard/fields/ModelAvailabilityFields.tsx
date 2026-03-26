@@ -42,6 +42,7 @@ export const modelAvailabilityFieldsSchema = z.custom<ModelAvailabilityFieldsDat
 export const useModelAvailabilityFields = (
   existingData?: ModelAvailabilityFieldsData,
   modelType?: ModelTypeFieldData,
+  isGenAiEnabled = false,
 ): ModelAvailabilityFields => {
   const [data, setData] = React.useState<ModelAvailabilityFieldsData>(
     existingData ?? {
@@ -64,7 +65,7 @@ export const useModelAvailabilityFields = (
   return {
     data: AiAssetData,
     setData,
-    showField: modelType?.type === ServingRuntimeModelType.GENERATIVE,
+    showField: modelType?.type === ServingRuntimeModelType.GENERATIVE && isGenAiEnabled,
   };
 };
 

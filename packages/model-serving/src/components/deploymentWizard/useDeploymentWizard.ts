@@ -1,4 +1,5 @@
 import React from 'react';
+import { DashboardConfigContext } from '@odh-dashboard/plugin-core';
 import { useHardwareProfileConfig } from '@odh-dashboard/internal/concepts/hardwareProfiles/useHardwareProfileConfig';
 import { useK8sNameDescriptionFieldData } from '@odh-dashboard/internal/concepts/k8s/K8sNameDescriptionField/K8sNameDescriptionField';
 import {
@@ -98,9 +99,13 @@ export const useModelDeploymentWizard = (
   }, [hardwareProfileConfig.profilesLoaded]);
 
   // Step 3: Advanced Options - Individual Fields
+  const config = React.useContext(DashboardConfigContext);
+  const isGenAiEnabled = config?.dashboardConfig.genAiStudio ?? false;
+
   const modelAvailability = useModelAvailabilityFields(
     initialData?.modelAvailability,
     modelType.data,
+    isGenAiEnabled,
   );
 
   const externalRoute = useExternalRouteField(

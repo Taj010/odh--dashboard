@@ -110,28 +110,53 @@ describe('AvailableAiAssetsFields', () => {
     });
   });
   describe('useModelAvailabilityFields hook visibility logic', () => {
-    it('should show field when model type is generative', () => {
+    it('should show field when model type is generative and gen AI is enabled', () => {
+      const { result } = renderHook(() =>
+        useModelAvailabilityFields(
+          undefined,
+          { type: ServingRuntimeModelType.GENERATIVE, legacyVLLM: false },
+          true,
+        ),
+      );
+      expect(result.current.showField).toBe(true);
+    });
+    it('should not show field when model type is generative but gen AI is disabled', () => {
+      const { result } = renderHook(() =>
+        useModelAvailabilityFields(
+          undefined,
+          { type: ServingRuntimeModelType.GENERATIVE, legacyVLLM: false },
+          false,
+        ),
+      );
+      expect(result.current.showField).toBe(false);
+    });
+    it('should not show field when isGenAiEnabled is not passed (defaults to false)', () => {
       const { result } = renderHook(() =>
         useModelAvailabilityFields(undefined, {
           type: ServingRuntimeModelType.GENERATIVE,
           legacyVLLM: false,
         }),
       );
-      expect(result.current.showField).toBe(true);
+      expect(result.current.showField).toBe(false);
     });
     it('should not show field when model type is predictive', () => {
       const { result } = renderHook(() =>
-        useModelAvailabilityFields(undefined, {
-          type: ServingRuntimeModelType.PREDICTIVE,
-          legacyVLLM: false,
-        }),
+        useModelAvailabilityFields(
+          undefined,
+          { type: ServingRuntimeModelType.PREDICTIVE, legacyVLLM: false },
+          true,
+        ),
       );
       expect(result.current.showField).toBe(false);
     });
     it('should reset data when model type changes from generative to not generative', () => {
       const { result, rerender } = renderHook(
         ({ modelType }) =>
-          useModelAvailabilityFields({ saveAsAiAsset: true, useCase: 'test' }, modelType),
+          useModelAvailabilityFields(
+            { saveAsAiAsset: true, useCase: 'test' },
+            modelType,
+            true,
+          ),
         {
           initialProps: {
             modelType: { type: ServingRuntimeModelType.GENERATIVE, legacyVLLM: false },
