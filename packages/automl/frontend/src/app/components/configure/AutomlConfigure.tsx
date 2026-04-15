@@ -55,10 +55,17 @@ import SecretSelector, { SecretSelection } from '~/app/components/common/SecretS
 import { useS3FileUploadMutation } from '~/app/hooks/mutations';
 import { useS3GetFileSchemaQuery } from '~/app/hooks/queries';
 import { useNotification } from '~/app/hooks/useNotification';
-import { ConfigureSchema, MAX_TOP_N, MIN_TOP_N, TASK_TYPES } from '~/app/schemas/configure.schema';
+import {
+  ConfigureSchema,
+  MAX_TOP_N_TABULAR,
+  MAX_TOP_N_TIMESERIES,
+  MIN_TOP_N,
+  TASK_TYPES,
+} from '~/app/schemas/configure.schema';
 import { SecretListItem } from '~/app/types';
 import {
   TASK_TYPE_BINARY,
+  TASK_TYPE_LABELS,
   TASK_TYPE_MULTICLASS,
   TASK_TYPE_REGRESSION,
   TASK_TYPE_TIMESERIES,
@@ -76,31 +83,33 @@ const PREDICTION_TYPES: {
 }[] = [
   {
     value: TASK_TYPE_BINARY,
-    label: 'Binary classification',
+    label: TASK_TYPE_LABELS[TASK_TYPE_BINARY],
     description:
       'Classify data into categories. Choose this if your prediction column contains two distinct categories',
   },
   {
     value: TASK_TYPE_MULTICLASS,
-    label: 'Multiclass classification',
+    label: TASK_TYPE_LABELS[TASK_TYPE_MULTICLASS],
     description:
       'Classify data into categories. Choose this if your prediction column contains multiple distinct categories',
   },
   {
     value: TASK_TYPE_REGRESSION,
-    label: 'Regression',
+    label: TASK_TYPE_LABELS[TASK_TYPE_REGRESSION],
     description:
       'Predict values from a continuous set of values. Choose this if your prediction column contains a large number of values',
   },
   {
     value: TASK_TYPE_TIMESERIES,
-    label: 'Time series forecasting',
+    label: TASK_TYPE_LABELS[TASK_TYPE_TIMESERIES],
     description:
       'Predict future activity over a specified date/time range. Data must be structured and sequential.',
   },
 ];
 
-const AUTOML_REQUIRED_KEYS: { [type: string]: string[] } = { s3: ['aws_s3_bucket'] };
+const AUTOML_REQUIRED_KEYS: { [type: string]: string[] } = {
+  s3: ['AWS_S3_BUCKET', 'AWS_DEFAULT_REGION'],
+};
 
 /** MIME types and extensions for the training CSV upload dropzone (react-dropzone `accept` format). */
 const TRAINING_DATA_FILE_ACCEPT: Record<string, string[]> = {
@@ -111,8 +120,8 @@ const TRAINING_DATA_UPLOAD_NATIVE_ACCEPT = [
   ...new Set(Object.values(TRAINING_DATA_FILE_ACCEPT).flat()),
 ].join(',');
 
-/** Matches MultipleFileUpload dropzone `maxSize` (1 GiB). */
-const TRAINING_DATA_UPLOAD_MAX_BYTES = 1024 * 1024 * 1024;
+/** Matches MultipleFileUpload dropzone `maxSize` (32 MiB). */
+const TRAINING_DATA_UPLOAD_MAX_BYTES = 32 * 1024 * 1024;
 
 /** Same allowlist as the dropzone `accept` map (extension and/or MIME). */
 function isAllowedTrainingDataUploadFile(file: File): boolean {
@@ -170,6 +179,7 @@ function AutomlConfigure(): React.JSX.Element {
     control,
     setValue,
     getValues,
+    trigger,
     formState: { isSubmitting: formIsSubmitting },
   } = form;
 
@@ -179,6 +189,16 @@ function AutomlConfigure(): React.JSX.Element {
   });
   const isTaskTypeSelected = TASK_TYPES.includes(taskType);
   const isTimeseries = taskType === TASK_TYPE_TIMESERIES;
+
+  // Calculate max top_n based on task type
+  const maxTopN = isTimeseries ? MAX_TOP_N_TIMESERIES : MAX_TOP_N_TABULAR;
+
+  // Re-validate top_n when task type changes (max depends on task type)
+  useEffect(() => {
+    if (isTaskTypeSelected) {
+      void trigger('top_n');
+    }
+  }, [taskType, isTaskTypeSelected, trigger]);
 
   const canSelectFiles = !selectedSecret?.invalid && Boolean(trainDataSecretName);
   const isFileSelected = Boolean(trainDataFileKey);
@@ -207,10 +227,7 @@ function AutomlConfigure(): React.JSX.Element {
       return;
     }
 
-    const bucketKey = findKey(
-      selectedSecret.data,
-      (value, key) => key.toLowerCase() === 'aws_s3_bucket',
-    );
+    const bucketKey = findKey(selectedSecret.data, (value, key) => key === 'AWS_S3_BUCKET');
     setValue('train_data_bucket_name', bucketKey ? selectedSecret.data[bucketKey] : '', {
       shouldValidate: true,
     });
@@ -300,7 +317,7 @@ function AutomlConfigure(): React.JSX.Element {
         return;
       }
       if (file.size > TRAINING_DATA_UPLOAD_MAX_BYTES) {
-        notification.error('File too large', 'File size must be 1 GiB or less.');
+        notification.error('File too large', 'File size must be 32 MiB or less.');
         return;
       }
       if (!isAllowedTrainingDataUploadFile(file)) {
@@ -376,6 +393,7 @@ function AutomlConfigure(): React.JSX.Element {
                                   namespace={String(namespace)}
                                   type="storage"
                                   additionalRequiredKeys={AUTOML_REQUIRED_KEYS}
+                                  isDisabled={formIsSubmitting}
                                   value={selectedSecret?.uuid}
                                   onChange={(secret) => {
                                     if (!secret) {
@@ -409,6 +427,7 @@ function AutomlConfigure(): React.JSX.Element {
                           <Button
                             key="add-new-connection"
                             variant="secondary"
+                            isDisabled={formIsSubmitting}
                             onClick={() => setIsConnectionModalOpen(true)}
                           >
                             Add new connection
@@ -440,6 +459,7 @@ function AutomlConfigure(): React.JSX.Element {
                             buttonId="training-data-input-select"
                             data-testid="training-data-source-select-toggle"
                             isSelected={trainingDataSourceMode === 'select'}
+                            isDisabled={formIsSubmitting}
                             onChange={() => setTrainingDataSourceMode('select')}
                           />
                           <ToggleGroupItem
@@ -447,6 +467,7 @@ function AutomlConfigure(): React.JSX.Element {
                             buttonId="training-data-input-upload"
                             data-testid="training-data-source-upload-toggle"
                             isSelected={trainingDataSourceMode === 'upload'}
+                            isDisabled={formIsSubmitting}
                             onChange={() => setTrainingDataSourceMode('upload')}
                           />
                         </ToggleGroup>
@@ -496,6 +517,7 @@ function AutomlConfigure(): React.JSX.Element {
                                           variant="plain"
                                           aria-label="Remove selection"
                                           icon={<TimesIcon />}
+                                          isDisabled={formIsSubmitting}
                                           onClick={() => {
                                             setSelectedTrainingDataFile(undefined);
                                             setValue('train_data_file_key', '', {
@@ -628,6 +650,7 @@ function AutomlConfigure(): React.JSX.Element {
                                           <DropdownItem
                                             key="remove"
                                             data-testid="training-data-upload-remove"
+                                            isDisabled={formIsSubmitting}
                                             onClick={clearTrainingDataUpload}
                                           >
                                             Remove
@@ -635,6 +658,7 @@ function AutomlConfigure(): React.JSX.Element {
                                           <DropdownItem
                                             key="replace"
                                             data-testid="training-data-upload-replace"
+                                            isDisabled={formIsSubmitting}
                                             onClick={openTrainingDataReplaceFileDialog}
                                           >
                                             Replace
@@ -663,7 +687,7 @@ function AutomlConfigure(): React.JSX.Element {
                 <Content component="h3">Configure details</Content>
               </CardHeader>
               <CardBody>
-                {!trainDataSecretName ? (
+                {!trainDataFileKey ? (
                   <EmptyState
                     variant="xs"
                     titleText="Select an S3 connection or upload a file to get started"
@@ -688,7 +712,7 @@ function AutomlConfigure(): React.JSX.Element {
                                 <Card
                                   key={type.value}
                                   isSelectable
-                                  isDisabled={!canSelectLearningType}
+                                  isDisabled={!canSelectLearningType || formIsSubmitting}
                                   isSelected={field.value === type.value}
                                   data-testid={`task-type-card-${type.value}`}
                                 >
@@ -738,50 +762,52 @@ function AutomlConfigure(): React.JSX.Element {
                       />
                     ) : null}
 
-                    <StackItem>
-                      <ConfigureFormGroup
-                        label="Top models to consider"
-                        labelHelp={{
-                          header: 'Top models to consider',
-                          body: 'Number of top models to select and refit. The pipeline will train multiple models and select the best performing ones for final training.',
-                        }}
-                      >
-                        <Controller
-                          control={form.control}
-                          name="top_n"
-                          render={({ field, fieldState }) => (
-                            <>
-                              <NumberInput
-                                id="top-n-input"
-                                value={field.value}
-                                min={MIN_TOP_N}
-                                max={MAX_TOP_N}
-                                isDisabled={formIsSubmitting}
-                                validated={fieldState.error ? 'error' : 'default'}
-                                onMinus={() => field.onChange(Number(field.value) - 1)}
-                                onPlus={() => field.onChange(Number(field.value) + 1)}
-                                onChange={(event: React.FormEvent<HTMLInputElement>) => {
-                                  const value = parseInt(event.currentTarget.value, 10);
-                                  if (!Number.isNaN(value)) {
-                                    field.onChange(value);
-                                  }
-                                }}
-                                data-testid="top-n-input"
-                              />
-                              {fieldState.error && (
-                                <FormHelperText>
-                                  <HelperText>
-                                    <HelperTextItem variant="error">
-                                      {fieldState.error.message}
-                                    </HelperTextItem>
-                                  </HelperText>
-                                </FormHelperText>
-                              )}
-                            </>
-                          )}
-                        />
-                      </ConfigureFormGroup>
-                    </StackItem>
+                    {isTaskTypeSelected && (
+                      <StackItem>
+                        <ConfigureFormGroup
+                          label="Top models to consider"
+                          labelHelp={{
+                            header: 'Top models to consider',
+                            body: 'Number of top models to select and refit. The pipeline will train multiple models and select the best performing ones for final training.',
+                          }}
+                        >
+                          <Controller
+                            control={form.control}
+                            name="top_n"
+                            render={({ field, fieldState }) => (
+                              <>
+                                <NumberInput
+                                  id="top-n-input"
+                                  value={field.value}
+                                  min={MIN_TOP_N}
+                                  max={maxTopN}
+                                  isDisabled={formIsSubmitting}
+                                  validated={fieldState.error ? 'error' : 'default'}
+                                  onMinus={() => field.onChange(Number(field.value) - 1)}
+                                  onPlus={() => field.onChange(Number(field.value) + 1)}
+                                  onChange={(event: React.FormEvent<HTMLInputElement>) => {
+                                    const value = parseInt(event.currentTarget.value, 10);
+                                    if (!Number.isNaN(value)) {
+                                      field.onChange(value);
+                                    }
+                                  }}
+                                  data-testid="top-n-input"
+                                />
+                                {fieldState.error && (
+                                  <FormHelperText>
+                                    <HelperText>
+                                      <HelperTextItem variant="error">
+                                        {fieldState.error.message}
+                                      </HelperTextItem>
+                                    </HelperText>
+                                  </FormHelperText>
+                                )}
+                              </>
+                            )}
+                          />
+                        </ConfigureFormGroup>
+                      </StackItem>
+                    )}
                   </Stack>
                 )}
               </CardBody>
@@ -838,6 +864,7 @@ function AutomlConfigure(): React.JSX.Element {
             setSelectedTrainingDataFile(file);
           }
         }}
+        allowFolderSelection={false}
         selectableExtensions={['csv']}
         unselectableReason="You can only select CSV files"
       />

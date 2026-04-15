@@ -13,10 +13,10 @@ import SimpleMenuActions from '@odh-dashboard/internal/components/SimpleMenuActi
 import { useGetSubscriptionInfo } from '~/app/hooks/useGetSubscriptionInfo';
 import { MaaSSubscription } from '~/app/types/subscriptions';
 import { URL_PREFIX } from '~/app/utilities/const';
+import MaasModelsSection from '~/app/shared/MaasModelsSection';
 import DeleteSubscriptionModal from './DeleteSubscriptionModal';
 import SubscriptionDetailsSection from './viewSubscription/SubscriptionDetailsSection';
 import SubscriptionGroupsSection from './viewSubscription/SubscriptionGroupsSection';
-import SubscriptionModelsSection from './viewSubscription/SubscriptionModelsSection';
 
 type SubscriptionActionsProps = {
   subscription: MaaSSubscription;
@@ -63,6 +63,8 @@ const ViewSubscriptionPage: React.FC = () => {
   const { subscriptionName = '' } = useParams<{ subscriptionName: string }>();
   const [activeTab, setActiveTab] = React.useState<string | number>('details');
   const [subscriptionInfo, loaded, loadError] = useGetSubscriptionInfo(subscriptionName);
+  const displaySubscriptionName =
+    subscriptionInfo?.subscription.displayName?.trim() || subscriptionName;
 
   const breadcrumb = (
     <Breadcrumb>
@@ -71,13 +73,13 @@ const ViewSubscriptionPage: React.FC = () => {
           Subscriptions
         </Link>
       </BreadcrumbItem>
-      <BreadcrumbItem isActive>{subscriptionName}</BreadcrumbItem>
+      <BreadcrumbItem isActive>{displaySubscriptionName}</BreadcrumbItem>
     </Breadcrumb>
   );
 
   return (
     <ApplicationsPage
-      title={subscriptionName}
+      title={displaySubscriptionName}
       breadcrumb={breadcrumb}
       headerAction={
         subscriptionInfo && <SubscriptionActions subscription={subscriptionInfo.subscription} />
@@ -107,9 +109,9 @@ const ViewSubscriptionPage: React.FC = () => {
               <SubscriptionGroupsSection groups={subscriptionInfo.subscription.owner.groups} />
             </PageSection>
             <PageSection hasBodyWrapper={false} className="pf-v6-u-pb-xl">
-              <SubscriptionModelsSection
+              <MaasModelsSection
                 modelRefSummaries={subscriptionInfo.modelRefs}
-                subscriptionModelRefs={subscriptionInfo.subscription.modelRefs}
+                modelRefsWithRateLimits={subscriptionInfo.subscription.modelRefs}
               />
             </PageSection>
           </Tab>

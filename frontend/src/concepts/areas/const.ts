@@ -5,10 +5,9 @@ export const techPreviewFlags = {
   genAiStudio: false,
   automl: false,
   autorag: false,
-  modelAsService: false,
-  maasAuthPolicies: false,
+  modelAsService: true,
+  maasAuthPolicies: true,
   aiAssetCustomEndpoints: false,
-  mlflow: false,
   mlflowPipelines: false,
   mcpCatalog: false,
   projectRBAC: true,
@@ -16,6 +15,7 @@ export const techPreviewFlags = {
   deploymentWizardYAMLViewer: false,
   externalVectorStores: false,
   vLLMDeploymentOnMaaS: false,
+  llmGatewayField: false,
   promptManagement: false,
 } satisfies Partial<DashboardCommonConfig>;
 
@@ -218,11 +218,10 @@ export const SupportedAreasStateMap: SupportedAreasState = {
     requiredComponents: [DataScienceStackComponent.RAY],
   },
   [SupportedArea.MLFLOW]: {
-    featureFlags: ['mlflow'],
     requiredComponents: [DataScienceStackComponent.MLFLOW],
   },
   [SupportedArea.MLFLOW_PIPELINES]: {
-    featureFlags: ['mlflowPipelines', 'mlflow'],
+    featureFlags: ['mlflowPipelines'],
     requiredComponents: [DataScienceStackComponent.DS_PIPELINES, DataScienceStackComponent.MLFLOW],
   },
   [SupportedArea.PROJECT_RBAC_SETTINGS]: {
@@ -234,6 +233,11 @@ export const SupportedAreasStateMap: SupportedAreasState = {
   },
   [SupportedArea.VLLM_ON_MAAS]: {
     featureFlags: ['vLLMDeploymentOnMaaS'],
+    reliantAreas: [SupportedArea.LLMD_SERVING],
+  },
+  [SupportedArea.LLMD_GATEWAY_FIELD]: {
+    featureFlags: ['llmGatewayField'],
+    reliantAreas: [SupportedArea.LLMD_SERVING],
   },
   [SupportedArea.MAAS_AUTH_POLICIES]: {
     featureFlags: ['maasAuthPolicies'],

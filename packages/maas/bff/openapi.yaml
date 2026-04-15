@@ -1889,6 +1889,10 @@ components:
           enum: [Pending, Active, Failed]
           description: Current phase of the subscription (from status)
           example: Active
+        statusMessage:
+          type: string
+          description: Human-readable status message from the Ready condition in status.conditions
+          example: "successfully reconciled"
         priority:
           type: integer
           format: int32
@@ -1953,11 +1957,28 @@ components:
           type: string
           description: Namespace of the MaaSAuthPolicy resource
           example: maas-system
+        displayName:
+          type: string
+          description: Human-readable display name for the policy
+          example: Premium Team Policy
+        description:
+          type: string
+          description: Description of the policy
+          example: High-priority access policy for the premium team.
         phase:
           type: string
           enum: [Pending, Active, Failed]
           description: Current phase of the auth policy (from status)
           example: Active
+        statusMessage:
+          type: string
+          description: Human-readable status message from the Ready condition in status.conditions
+          example: "successfully reconciled"
+        creationTimestamp:
+          type: string
+          format: date-time
+          description: Timestamp when the policy was created
+          example: "2025-03-01T10:00:00Z"
         modelRefs:
           type: array
           items:

@@ -5,20 +5,20 @@ import {
   toNumericMetric,
   getOptimizedMetricForTask,
   computeRankMap,
-  isErrorMetric,
 } from '~/app/utilities/utils';
 
 describe('formatMetricName', () => {
   it('should return special-cased acronyms as-is', () => {
     expect(formatMetricName('roc_auc')).toBe('ROC AUC');
     expect(formatMetricName('mcc')).toBe('MCC');
-    expect(formatMetricName('f1')).toBe('F1');
+    expect(formatMetricName('f1')).toBe('F₁');
     expect(formatMetricName('r2')).toBe('R²');
     expect(formatMetricName('mae')).toBe('MAE');
     expect(formatMetricName('mse')).toBe('MSE');
     expect(formatMetricName('rmse')).toBe('RMSE');
     expect(formatMetricName('mape')).toBe('MAPE');
     expect(formatMetricName('mase')).toBe('MASE');
+    expect(formatMetricName('smape')).toBe('SMAPE');
   });
 
   it('should convert snake_case to Title Case', () => {
@@ -26,7 +26,7 @@ describe('formatMetricName', () => {
     expect(formatMetricName('root_mean_squared_error')).toBe('Root Mean Squared Error');
   });
 
-  it('should capitalize a single word', () => {
+  it('should title-case a single-word key not in the display names map', () => {
     expect(formatMetricName('accuracy')).toBe('Accuracy');
     expect(formatMetricName('precision')).toBe('Precision');
   });
@@ -154,15 +154,16 @@ describe('computeRankMap', () => {
     });
   });
 
-  it('should rank models by mase ascending for timeseries (lower is better)', () => {
+  it('should rank models by negated mase descending for timeseries (higher is better)', () => {
     const models = {
-      ModelA: buildModel(0.15, 'mase'),
-      ModelB: buildModel(0.05, 'mase'),
-      ModelC: buildModel(0.1, 'mase'),
+      ModelA: buildModel(-0.15, 'mase'),
+      ModelB: buildModel(-0.05, 'mase'),
+      ModelC: buildModel(-0.1, 'mase'),
     };
 
     const rankMap = computeRankMap(models, 'timeseries');
 
+    // -0.05 > -0.10 > -0.15, so ModelB (closest to 0) is best
     expect(rankMap).toEqual({
       ModelB: 1,
       ModelC: 2,
@@ -179,21 +180,6 @@ describe('computeRankMap', () => {
     const rankMap = computeRankMap(models, 'regression');
 
     // -0.084 > -0.097, so ModelB is better
-    expect(rankMap).toEqual({
-      ModelB: 1,
-      ModelA: 2,
-    });
-  });
-
-  it('should use absolute values for error metrics like mase', () => {
-    const models = {
-      ModelA: buildModel(-0.15, 'mase'),
-      ModelB: buildModel(-0.05, 'mase'),
-    };
-
-    const rankMap = computeRankMap(models, 'timeseries');
-
-    // |−0.05| < |−0.15|, so ModelB is better (lower error)
     expect(rankMap).toEqual({
       ModelB: 1,
       ModelA: 2,
@@ -231,15 +217,16 @@ describe('computeRankMap', () => {
     });
   });
 
-  it('should rank models with missing metrics last for error metrics', () => {
+  it('should rank models with missing metrics last for negated error metrics', () => {
     const models = {
-      ModelA: buildModel(0.15, 'mase'),
+      ModelA: buildModel(-0.15, 'mase'),
       ModelB: { metrics: { test_data: {} } }, // missing mase
-      ModelC: buildModel(0.05, 'mase'),
+      ModelC: buildModel(-0.05, 'mase'),
     };
 
     const rankMap = computeRankMap(models, 'timeseries');
 
+    // -0.05 > -0.15 > -Infinity (missing), so ModelC is best
     expect(rankMap).toEqual({
       ModelC: 1,
       ModelA: 2,
@@ -275,27 +262,5 @@ describe('computeRankMap', () => {
       ModelA: 1,
       ModelB: 2,
     });
-  });
-});
-
-describe('isErrorMetric', () => {
-  it('should return true for known error metrics', () => {
-    expect(isErrorMetric('mase')).toBe(true);
-    expect(isErrorMetric('mse')).toBe(true);
-    expect(isErrorMetric('mae')).toBe(true);
-    expect(isErrorMetric('rmse')).toBe(true);
-    expect(isErrorMetric('mape')).toBe(true);
-  });
-
-  it('should return false for non-error metrics', () => {
-    expect(isErrorMetric('accuracy')).toBe(false);
-    expect(isErrorMetric('r2')).toBe(false);
-    expect(isErrorMetric('f1')).toBe(false);
-    expect(isErrorMetric('precision')).toBe(false);
-  });
-
-  it('should be case-insensitive', () => {
-    expect(isErrorMetric('MASE')).toBe(true);
-    expect(isErrorMetric('MSE')).toBe(true);
   });
 });
