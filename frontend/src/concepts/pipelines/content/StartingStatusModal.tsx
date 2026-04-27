@@ -159,14 +159,14 @@ const StartingStatusModal: React.FC<StartingStatusModalProps> = ({ onClose, onDe
   const modalTitle = serverErroredOut
     ? 'Pipeline Initialization Failed'
     : isServerReadyAndCompletelyDone
-    ? 'Pipeline Server Initialized'
-    : spinner;
+      ? 'Pipeline Server Initialized'
+      : spinner;
 
   const modalDesc = serverErroredOut
     ? errorDesc
     : isServerReadyAndCompletelyDone
-    ? successDesc
-    : inProgressDesc;
+      ? successDesc
+      : inProgressDesc;
 
   const contents = (
     <Stack hasGutter>

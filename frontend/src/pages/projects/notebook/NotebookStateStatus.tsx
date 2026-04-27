@@ -37,8 +37,8 @@ const getNotebookStatusColor = (notebookStatus?: NotebookStatus | null) =>
   notebookStatus?.currentStatus === EventStatus.ERROR
     ? DangerColor.var
     : notebookStatus?.currentStatus === EventStatus.WARNING
-    ? WarningColor.var
-    : RegularColor.var;
+      ? WarningColor.var
+      : RegularColor.var;
 
 const getNotebookStatusTextDecoration = (
   notebookStatus?: NotebookStatus | null,

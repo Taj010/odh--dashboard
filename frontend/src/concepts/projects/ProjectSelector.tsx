@@ -54,7 +54,7 @@ const ProjectSelector: React.FC<ProjectSelectorProps> = ({
 
   const selectionDisplayName = selection
     ? selection.displayName
-    : invalidDropdownPlaceholder ?? placeholder ?? namespace;
+    : (invalidDropdownPlaceholder ?? placeholder ?? namespace);
 
   const visibleNamespaces = namespaces.filter(bySearchText);
   const allProjectsHref = selectAllProjects ? getSelectionHref?.('') : undefined;

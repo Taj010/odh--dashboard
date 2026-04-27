@@ -33,7 +33,7 @@ const useAssignedFlavor = (
     if (!localQueueName || !workloads.length) return undefined;
     const byQueue = workloads.filter((w) => w.spec.queueName === localQueueName);
     const workload = resourceName
-      ? byQueue.find((w) => w.metadata?.name === resourceName) ?? byQueue[0]
+      ? (byQueue.find((w) => w.metadata?.name === resourceName) ?? byQueue[0])
       : byQueue[0];
     return getAssignedFlavorFromWorkload(workload);
   }, [workloads, localQueueName, resourceName]);

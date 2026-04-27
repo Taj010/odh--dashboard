@@ -258,8 +258,8 @@ const PipelineRunTable: React.FC<PipelineRunTableProps> = ({
                     !runArtifactsLoaded
                       ? 'Customize metrics columns: Loading metrics...'
                       : !(metricsColumnNames.length || metricsNames.size)
-                      ? 'Customize metrics columns: No metrics available'
-                      : 'Customize metrics columns'
+                        ? 'Customize metrics columns: No metrics available'
+                        : 'Customize metrics columns'
                   }
                 >
                   <Button
@@ -300,9 +300,9 @@ const PipelineRunTable: React.FC<PipelineRunTableProps> = ({
                 {!runArtifactsLoaded && !runArtifactsError && !contextsError ? (
                   <Skeleton />
                 ) : (
-                  run.metrics.find((metric) => metric.name === metricName)?.value ?? (
+                  (run.metrics.find((metric) => metric.name === metricName)?.value ?? (
                     <UnavailableMetricValue />
-                  )
+                  ))
                 )}
               </Td>
             ))}

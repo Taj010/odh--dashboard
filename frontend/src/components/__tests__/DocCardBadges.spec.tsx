@@ -28,7 +28,7 @@ const createDoc = (
       description: 'desc',
       durationMinutes,
     },
-  } as unknown as OdhDocument);
+  }) as unknown as OdhDocument;
 
 const renderWithContext = (odhDoc: OdhDocument) => {
   const contextValue = {

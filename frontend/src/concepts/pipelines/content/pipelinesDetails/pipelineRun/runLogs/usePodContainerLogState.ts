@@ -37,8 +37,8 @@ const usePodContainerLogState = (
 
   const firstPodContainer =
     podContainers.length > 0
-      ? podContainers.find((podContainer) => podContainer.name === defaultContainerName) ??
-        podContainers[0]
+      ? (podContainers.find((podContainer) => podContainer.name === defaultContainerName) ??
+        podContainers[0])
       : undefined;
   React.useEffect(() => {
     if (!selectedContainer && firstPodContainer) {

@@ -158,8 +158,8 @@ const CustomServingRuntimeAddTemplate: React.FC<CustomServingRuntimeAddTemplateP
         existingTemplate
           ? 'Modify properties for your serving runtime.'
           : state
-          ? 'Add a new, editable runtime by duplicating an existing runtime.'
-          : 'Add a new runtime that will be available for users on this cluster.'
+            ? 'Add a new, editable runtime by duplicating an existing runtime.'
+            : 'Add a new runtime that will be available for users on this cluster.'
       }
       breadcrumb={
         <Breadcrumb>

@@ -122,8 +122,8 @@ const CullerSettings: React.FC<CullerSettingsProps> = ({
                             newValue > MAX_HOUR
                               ? MAX_HOUR
                               : newValue < MIN_HOUR
-                              ? MIN_HOUR
-                              : newValue;
+                                ? MIN_HOUR
+                                : newValue;
                           // if the hour is max, then the minute can only be set to 0
                           if (newValue === MAX_HOUR && minute !== MIN_MINUTE) {
                             setMinute(MIN_MINUTE);
@@ -152,8 +152,8 @@ const CullerSettings: React.FC<CullerSettingsProps> = ({
                             newValue > MAX_MINUTE
                               ? MAX_MINUTE
                               : newValue < MIN_MINUTE
-                              ? MIN_MINUTE
-                              : newValue;
+                                ? MIN_MINUTE
+                                : newValue;
                           // if the hour is max, then the minute can only be set to 0
                           if (hour === MAX_HOUR) {
                             newValue = MIN_MINUTE;

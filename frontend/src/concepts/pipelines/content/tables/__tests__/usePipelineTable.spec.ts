@@ -19,7 +19,9 @@ describe('usePipelineTable', () => {
       >([{ totalSize: 0, items: [] }, false, undefined, jest.fn()]);
       setInternalStateFn = setInternalState;
       return internalState;
-    }) as unknown as (options: PipelineOptions) => FetchState<PipelineListPaged<PipelineCoreResourceKF | PipelineRunKF>>);
+    }) as unknown as (
+      options: PipelineOptions,
+    ) => FetchState<PipelineListPaged<PipelineCoreResourceKF | PipelineRunKF>>);
 
     // initialLoaded starts as `false`
     const renderResult = testHook(createUsePipelineTable(useMock))();

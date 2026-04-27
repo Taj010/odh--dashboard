@@ -92,9 +92,8 @@ const CreateModal: React.FC<CreateModalProps> = ({ onClose, refresh, modelRegist
   const [showPassword, setShowPassword] = React.useState(false);
   const { dscStatus } = React.useContext(AreaContext);
   const secureDbEnabled = useIsAreaAvailable(SupportedArea.MODEL_REGISTRY_SECURE_DB).status;
-  const [configSecrets, configSecretsLoaded, configSecretsError] = useModelRegistryCertificateNames(
-    !addSecureDB,
-  );
+  const [configSecrets, configSecretsLoaded, configSecretsError] =
+    useModelRegistryCertificateNames(!addSecureDB);
   const [secureDBInfo, setSecureDBInfo] = React.useState<SecureDBInfo>({
     type: SecureDBRType.CLUSTER_WIDE,
     nameSpace: '',
@@ -112,8 +111,8 @@ const CreateModal: React.FC<CreateModalProps> = ({ onClose, refresh, modelRegist
         type: isClusterWideCABundleEnabled(configSecrets.configMaps)
           ? SecureDBRType.CLUSTER_WIDE
           : isOpenshiftCAbundleEnabled(configSecrets.configMaps)
-          ? SecureDBRType.OPENSHIFT
-          : SecureDBRType.EXISTING,
+            ? SecureDBRType.OPENSHIFT
+            : SecureDBRType.EXISTING,
         isValid: !!(
           isClusterWideCABundleEnabled(configSecrets.configMaps) ||
           isOpenshiftCAbundleEnabled(configSecrets.configMaps)

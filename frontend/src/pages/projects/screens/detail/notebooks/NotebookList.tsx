@@ -65,8 +65,8 @@ const NotebookList: React.FC = () => {
   const createDisabledTooltip = isKueueDisabled
     ? KUEUE_WORKBENCH_CREATION_DISABLED_MESSAGE
     : !allowCreate
-    ? CREATE_WORKBENCH_DISABLED_MESSAGE
-    : undefined;
+      ? CREATE_WORKBENCH_DISABLED_MESSAGE
+      : undefined;
 
   const getCreateButton = () => {
     if (isCreateDisabled) {

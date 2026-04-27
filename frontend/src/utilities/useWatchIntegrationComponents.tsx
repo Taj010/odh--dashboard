@@ -37,7 +37,7 @@ export const useWatchIntegrationComponents = (
             variablesValidationStatus: VariablesValidationStatus.UNKNOWN,
             variablesValidationTimestamp: '',
             error: e.message ?? e.error,
-          } satisfies IntegrationAppStatus),
+          }) satisfies IntegrationAppStatus,
       );
 
       if (response.error) {

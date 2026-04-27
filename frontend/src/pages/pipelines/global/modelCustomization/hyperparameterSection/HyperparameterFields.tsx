@@ -58,7 +58,7 @@ const HyperparameterFieldsDisplay: React.FC<HyperparameterFieldsDisplayProps> = 
                     !value.isOptional,
                     value.description,
                     onChange,
-                    key in data ? data[key] ?? '' : value.defaultValue ?? '',
+                    key in data ? (data[key] ?? '') : (value.defaultValue ?? ''),
                     getFieldValidation([key]),
                     getFieldValidationProps([key]).onBlur,
                   )}
@@ -68,7 +68,7 @@ const HyperparameterFieldsDisplay: React.FC<HyperparameterFieldsDisplayProps> = 
           }
 
           const inputProps = {
-            value: key in data ? data[key] ?? '' : value.defaultValue ?? '',
+            value: key in data ? (data[key] ?? '') : (value.defaultValue ?? ''),
             id: key,
             name: key,
             onChange: (

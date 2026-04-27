@@ -435,7 +435,7 @@ const TypeaheadSelect: React.FunctionComponent<TypeaheadSelectProps> = ({
         <Flex alignItems={{ default: 'alignItemsCenter' }} style={{ width: '100%' }}>
           <FlexItem style={{ flex: 1 }}>
             <TextInputGroupMain
-              value={isFiltering ? filterValue : selected?.content ?? ''}
+              value={isFiltering ? filterValue : (selected?.content ?? '')}
               onClick={onInputClick}
               onChange={onTextInputChange}
               onKeyDown={onInputKeyDown}

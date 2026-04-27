@@ -121,8 +121,8 @@ const NotebookServerDetails: React.FC = () => {
             {hardwareProfile.initialHardwareProfile
               ? getHardwareProfileDisplayName(hardwareProfile.initialHardwareProfile)
               : hardwareProfile.formData.useExistingSettings
-              ? 'Unknown'
-              : 'None'}
+                ? 'Unknown'
+                : 'None'}
           </DescriptionListDescription>
         </DescriptionListGroup>
       </DescriptionList>

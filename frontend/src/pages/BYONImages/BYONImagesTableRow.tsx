@@ -36,8 +36,8 @@ const BYONImagesTableRow: React.FC<BYONImagesTableRowProps> = ({
     obj.software.length > 0 && obj.packages.length > 0
       ? '3Col'
       : obj.software.length === 0 && obj.packages.length === 0
-      ? '1Col'
-      : '2Col';
+        ? '1Col'
+        : '2Col';
 
   return (
     <Tbody isExpanded={isExpanded}>

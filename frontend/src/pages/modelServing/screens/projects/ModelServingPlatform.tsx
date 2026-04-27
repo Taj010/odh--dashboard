@@ -269,8 +269,8 @@ const ModelServingPlatform: React.FC = () => {
                     {isKServeNIMEnabled
                       ? 'NVIDIA NIM serving enabled'
                       : isCurrentPlatformEnabled
-                      ? 'Single-model serving enabled'
-                      : 'Current platform disabled'}
+                        ? 'Single-model serving enabled'
+                        : 'Current platform disabled'}
                   </Label>
 
                   {emptyModelServer &&

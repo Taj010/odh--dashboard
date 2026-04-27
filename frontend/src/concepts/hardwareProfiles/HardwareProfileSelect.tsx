@@ -363,8 +363,8 @@ const HardwareProfileSelect: React.FC<HardwareProfileSelectProps> = ({
                   options.length > 0
                     ? 'Select hardware profile...'
                     : hardwareProfilesError
-                    ? 'Error loading hardware profiles'
-                    : 'No enabled or valid hardware profiles are available. Contact your administrator.'
+                      ? 'Error loading hardware profiles'
+                      : 'No enabled or valid hardware profiles are available. Contact your administrator.'
                 }
                 isFullWidth
                 isSkeleton={!hardwareProfilesLoaded && !hardwareProfilesError}

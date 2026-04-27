@@ -74,7 +74,7 @@ describe('getArtifactModelData', () => {
           getStringValue: () => properties[key],
         }),
       }),
-    } as Artifact);
+    }) as Artifact;
 
   it('returns an empty object when artifact is undefined', () => {
     expect(getArtifactModelData(undefined)).toEqual({});

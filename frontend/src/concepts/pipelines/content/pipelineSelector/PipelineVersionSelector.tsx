@@ -55,13 +55,13 @@ const PipelineVersionSelector: React.FC<PipelineVersionSelectorProps> = ({
         !pipelineId
           ? 'Select a pipeline version'
           : initialLoaded
-          ? selection ||
-            (totalSize === 0
-              ? 'No versions available'
-              : supportedVersionsSize === 0
-              ? 'No supported versions available'
-              : 'Select a pipeline version')
-          : 'Loading pipeline versions'
+            ? selection ||
+              (totalSize === 0
+                ? 'No versions available'
+                : supportedVersionsSize === 0
+                  ? 'No supported versions available'
+                  : 'Select a pipeline version')
+            : 'Loading pipeline versions'
       }
       searchHelpText={`Type a name to search your ${supportedVersionsSize} versions.`}
       isDisabled={totalSize === 0}

@@ -293,8 +293,8 @@ const PipelineImportBase: React.FC<PipelineImportBaseProps> = ({
             isArgoWorkflow
               ? PIPELINE_ARGO_ERROR
               : isV1PipelineFile
-              ? 'Pipeline update and recompile required'
-              : 'Error creating pipeline'
+                ? 'Pipeline update and recompile required'
+                : 'Error creating pipeline'
           }
           alertLinks={isV1PipelineFile ? <PipelineMigrationNoteLinks /> : undefined}
         />

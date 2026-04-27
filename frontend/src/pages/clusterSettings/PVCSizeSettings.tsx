@@ -53,8 +53,8 @@ const PVCSizeSettings: React.FC<PVCSizeSettingsProps> = ({ initialValue, pvcSize
                       newValue > MAX_PVC_SIZE
                         ? MAX_PVC_SIZE
                         : newValue < MIN_PVC_SIZE
-                        ? MIN_PVC_SIZE
-                        : newValue;
+                          ? MIN_PVC_SIZE
+                          : newValue;
                     setPvcSize(newValue);
                   } else {
                     setPvcSize(0);

@@ -39,7 +39,7 @@ const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({
         <Flex gap={{ default: 'gapMd' }} alignItems={{ default: 'alignItemsCenter' }}>
           <FlexItem>
             <Button
-              icon={open ?? innerOpen ? <AngleDownIcon /> : <AngleRightIcon />}
+              icon={(open ?? innerOpen) ? <AngleDownIcon /> : <AngleRightIcon />}
               aria-labelledby={titleId}
               aria-expanded={open ?? innerOpen}
               variant="plain"

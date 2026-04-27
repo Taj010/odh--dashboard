@@ -39,8 +39,8 @@ const RoleBindingPermissionsNameInput: React.FC<RoleBindingPermissionsNameInputP
           isProjectSubject
             ? 'project name'
             : subjectKind === RoleBindingPermissionsRBType.GROUP
-            ? 'group name'
-            : 'username'
+              ? 'group name'
+              : 'username'
         }`}
         onChange={(e, newValue) => onChange(newValue)}
       />

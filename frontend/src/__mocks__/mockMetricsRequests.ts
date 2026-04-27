@@ -106,4 +106,4 @@ export const mockMetricsRequest = ({
         },
       },
     ],
-  } as BaseMetricListResponse);
+  }) as BaseMetricListResponse;

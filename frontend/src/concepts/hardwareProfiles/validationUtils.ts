@@ -156,8 +156,8 @@ export const hardwareProfileValidationSchema = z
           identifier.identifier === 'cpu'
             ? isCpuLimitLarger(request, limit, true)
             : identifier.identifier === 'memory'
-            ? isMemoryLimitLarger(String(request), String(limit), true)
-            : Number(limit) >= Number(request);
+              ? isMemoryLimitLarger(String(request), String(limit), true)
+              : Number(limit) >= Number(request);
 
         if (!isValid) {
           ctx.addIssue({

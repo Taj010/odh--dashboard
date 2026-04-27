@@ -34,11 +34,9 @@ const ActiveExperimentTable: React.FC<ActiveExperimentTableProps> = ({ ...baseTa
             onArchiveAll={() => {
               setArchiveExperiments(
                 selections
-                  .map<ExperimentKF | undefined>((selection) =>
-                    experiments.find(
-                      ({ experiment_id: experimentId }) => experimentId === selection,
-                    ),
-                  )
+                  .map<
+                    ExperimentKF | undefined
+                  >((selection) => experiments.find(({ experiment_id: experimentId }) => experimentId === selection))
                   .filter((v): v is ExperimentKF => !!v),
               );
               setIsArchiveModalOpen(true);

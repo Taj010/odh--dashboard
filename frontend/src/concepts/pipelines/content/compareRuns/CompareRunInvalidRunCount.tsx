@@ -34,8 +34,8 @@ export const CompareRunsInvalidRunCount: React.FC<CompareRunsInvalidRunCountProp
     runs.length > 10
       ? 'More than 10 runs have been selected for comparison. Select up to 10 runs to compare, and try again.'
       : runs.length === 0
-      ? 'No runs have been selected for comparison. Select between 1 and 10 runs to compare, and try again.'
-      : null;
+        ? 'No runs have been selected for comparison. Select between 1 and 10 runs to compare, and try again.'
+        : null;
 
   if (!title || !description) {
     return null;

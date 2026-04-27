@@ -480,7 +480,7 @@ export const getConnectionProtocolType = (
   isModelServingCompatible(connectionType, ModelServingCompatibleTypes.S3ObjectStorage)
     ? 's3'
     : isModelServingCompatible(connectionType, ModelServingCompatibleTypes.OCI)
-    ? 'oci'
-    : isModelServingCompatible(connectionType, ModelServingCompatibleTypes.URI)
-    ? 'uri'
-    : undefined;
+      ? 'oci'
+      : isModelServingCompatible(connectionType, ModelServingCompatibleTypes.URI)
+        ? 'uri'
+        : undefined;

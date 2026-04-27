@@ -153,9 +153,9 @@ const StartNotebookModal: React.FC<StartNotebookModalProps> = ({
           notebookStatus.currentStatus === EventStatus.ERROR
             ? AlertVariant.danger
             : notebookStatus.currentStatus === EventStatus.INFO ||
-              notebookStatus.currentStatus === EventStatus.SUCCESS
-            ? AlertVariant.info
-            : AlertVariant.warning,
+                notebookStatus.currentStatus === EventStatus.SUCCESS
+              ? AlertVariant.info
+              : AlertVariant.warning,
         title: notebookStatus.currentEventReason,
         description: notebookStatus.currentEventDescription,
       });
@@ -194,8 +194,8 @@ const StartNotebookModal: React.FC<StartNotebookModalProps> = ({
       (isStarting
         ? 'Waiting for server request to start...'
         : isStopping
-        ? 'Shutting down the server...'
-        : 'Creating resources...');
+          ? 'Shutting down the server...'
+          : 'Creating resources...');
     const title = kueueTitle ?? workbenchTitle;
 
     return (

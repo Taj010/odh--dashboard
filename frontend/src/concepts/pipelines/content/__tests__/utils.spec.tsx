@@ -56,7 +56,7 @@ const createRun = (state: RuntimeStateKF | string): PipelineRunKF =>
   ({
     ...run,
     state,
-  } as PipelineRunKF);
+  }) as PipelineRunKF;
 
 describe('computeRunStatus', () => {
   it('should check for run status when run status is undefined', () => {

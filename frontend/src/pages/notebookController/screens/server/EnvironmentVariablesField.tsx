@@ -92,7 +92,7 @@ const EnvironmentVariablesField: React.FC<EnvironmentVariablesFieldProps> = ({
                 type={
                   showPassword && variableType === 'password'
                     ? TextInputTypes.text
-                    : asEnumMember(variable.type, TextInputTypes) ?? undefined
+                    : (asEnumMember(variable.type, TextInputTypes) ?? undefined)
                 }
                 value={variable.value}
                 onChange={(e, newValue) =>

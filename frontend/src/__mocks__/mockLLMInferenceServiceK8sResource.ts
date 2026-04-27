@@ -82,8 +82,8 @@ export const mockLLMInferenceServiceK8sResource = ({
         ...(gatewayRefs
           ? { refs: gatewayRefs }
           : isMaaS
-          ? { refs: [{ name: 'maas-default-gateway', namespace: 'openshift-ingress' }] }
-          : {}),
+            ? { refs: [{ name: 'maas-default-gateway', namespace: 'openshift-ingress' }] }
+            : {}),
       },
       route: {},
       scheduler: {},

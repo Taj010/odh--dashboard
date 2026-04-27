@@ -27,7 +27,7 @@ export const makeGroupExtension = (
       type: overrides?.type ?? 'serving',
       order,
     },
-  } as unknown as LoadedExtension<ResolvedExtension<TaskGroupExtension>>);
+  }) as unknown as LoadedExtension<ResolvedExtension<TaskGroupExtension>>;
 
 export const makeItemExtension = (
   id: string,
@@ -46,4 +46,4 @@ export const makeItemExtension = (
       destination,
       order,
     },
-  } as unknown as LoadedExtension<ResolvedExtension<TaskItemExtension>>);
+  }) as unknown as LoadedExtension<ResolvedExtension<TaskItemExtension>>;

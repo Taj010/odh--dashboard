@@ -31,7 +31,7 @@ describe('configure pipeline server utils', () => {
         enableInstructLab: false,
         storeYamlInKubernetes: false,
         enableCaching,
-      } as PipelineServerConfigType);
+      }) as PipelineServerConfigType;
 
     type SecretsResponse = Parameters<typeof createDSPipelineResourceSpec>[1];
 

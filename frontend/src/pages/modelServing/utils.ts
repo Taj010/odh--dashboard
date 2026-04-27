@@ -271,7 +271,7 @@ export const getKServeContainerArgs = (
   servingRuntime?: ServingRuntimeKind,
 ): string[] | undefined => {
   const kserveContainer = getKServeContainer(servingRuntime);
-  return kserveContainer ? kserveContainer.args ?? [] : undefined;
+  return kserveContainer ? (kserveContainer.args ?? []) : undefined;
 };
 
 // will return `undefined` if no kserve container, force empty array if there is kserve with no vars

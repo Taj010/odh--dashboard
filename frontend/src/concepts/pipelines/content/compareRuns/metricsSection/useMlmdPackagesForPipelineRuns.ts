@@ -27,17 +27,15 @@ const useMlmdPackagesForPipelineRuns = (
           // get artifacts
           const artifactRequest = new GetArtifactsByContextRequest();
           artifactRequest.setContextId(context.getId());
-          const artifactRes = await metadataStoreServiceClient.getArtifactsByContext(
-            artifactRequest,
-          );
+          const artifactRes =
+            await metadataStoreServiceClient.getArtifactsByContext(artifactRequest);
           const artifacts = artifactRes.getArtifactsList();
 
           // get executions
           const executionRequest = new GetExecutionsByContextRequest();
           executionRequest.setContextId(context.getId());
-          const executionRes = await metadataStoreServiceClient.getExecutionsByContext(
-            executionRequest,
-          );
+          const executionRes =
+            await metadataStoreServiceClient.getExecutionsByContext(executionRequest);
           const executions = executionRes.getExecutionsList();
 
           // get events

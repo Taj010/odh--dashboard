@@ -158,8 +158,8 @@ const WildcardRedirect: React.FC<RedirectConfig> = ({ from, to }) => {
       wildcardPath = pathname.startsWith(basePath)
         ? pathname.slice(basePath.length)
         : params['*']
-        ? `/${params['*']}`
-        : '';
+          ? `/${params['*']}`
+          : '';
     }
 
     const processedPath = replacePathParameters(to, params).replace(WILDCARD_SUFFIX, wildcardPath);

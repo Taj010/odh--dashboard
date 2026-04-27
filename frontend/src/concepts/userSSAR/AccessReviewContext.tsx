@@ -89,7 +89,7 @@ export const AccessReviewProvider: React.FC<{ children: React.ReactNode }> = ({ 
         canIAccess,
         accessReviewCache,
         genKey,
-      } satisfies AccessReviewContextType),
+      }) satisfies AccessReviewContextType,
     [genKey, accessReviewCache, canIAccess],
   );
 

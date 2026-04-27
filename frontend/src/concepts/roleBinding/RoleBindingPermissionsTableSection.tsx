@@ -72,8 +72,8 @@ const RoleBindingPermissionsTableSection: React.FC<RoleBindingPermissionsTableSe
               isProjectSubject
                 ? ProjectObjectType.project
                 : subjectKind === RoleBindingPermissionsRBType.USER
-                ? ProjectObjectType.user
-                : ProjectObjectType.group
+                  ? ProjectObjectType.user
+                  : ProjectObjectType.group
             }
           />
           <FlexItem>
@@ -81,8 +81,8 @@ const RoleBindingPermissionsTableSection: React.FC<RoleBindingPermissionsTableSe
               {isProjectSubject
                 ? 'Projects'
                 : subjectKind === RoleBindingPermissionsRBType.USER
-                ? 'Users'
-                : 'Groups'}
+                  ? 'Users'
+                  : 'Groups'}
             </Title>
           </FlexItem>
         </Flex>
@@ -140,8 +140,8 @@ const RoleBindingPermissionsTableSection: React.FC<RoleBindingPermissionsTableSe
           {isProjectSubject
             ? 'Add project'
             : subjectKind === RoleBindingPermissionsRBType.USER
-            ? 'Add user'
-            : 'Add group'}
+              ? 'Add user'
+              : 'Add group'}
         </Button>
       </StackItem>
     </Stack>

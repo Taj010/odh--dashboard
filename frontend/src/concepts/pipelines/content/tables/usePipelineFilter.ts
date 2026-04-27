@@ -189,8 +189,8 @@ export const usePipelineFilterSearchParams = (
             label: runGroupFound.display_name,
           }
         : runGroupParam
-        ? { value: runGroupParam, label: runGroupParam }
-        : undefined,
+          ? { value: runGroupParam, label: runGroupParam }
+          : undefined,
       [FilterOptions.MLFLOW_EXPERIMENT]:
         isMlflowAvailable || !isMlflowLoaded
           ? searchParams.get(FilterOptions.MLFLOW_EXPERIMENT) || ''

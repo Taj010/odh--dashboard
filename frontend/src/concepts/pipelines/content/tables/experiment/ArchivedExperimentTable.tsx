@@ -44,11 +44,9 @@ const ArchivedExperimentTable: React.FC<ArchivedExperimentTableProps> = ({ ...ba
             onRestoreAll={() => {
               setRestoreExperiments(
                 selections
-                  .map<ExperimentKF | undefined>((selection) =>
-                    experiments.find(
-                      ({ experiment_id: experimentId }) => experimentId === selection,
-                    ),
-                  )
+                  .map<
+                    ExperimentKF | undefined
+                  >((selection) => experiments.find(({ experiment_id: experimentId }) => experimentId === selection))
                   .filter((v): v is ExperimentKF => !!v),
               );
               setIsRestoreModalOpen(true);

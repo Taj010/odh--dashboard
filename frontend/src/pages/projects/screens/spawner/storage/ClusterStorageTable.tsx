@@ -68,8 +68,8 @@ export const ClusterStorageTable: React.FC<ClusterStorageTableProps> = ({
                         workbenchName,
                       )
                     : pvcName.includes('-')
-                    ? pvcName.split('-')[1]
-                    : pvcName,
+                      ? pvcName.split('-')[1]
+                      : pvcName,
                 }
               : data,
           ),

@@ -19,12 +19,12 @@ export const columns: SortableData<StorageTableData>[] = [
     width: 15,
     sortable: (a, b) =>
       (a.storageClass
-        ? getStorageClassConfig(a.storageClass)?.displayName ?? a.storageClass.metadata.name
-        : a.pvc.spec.storageClassName ?? ''
+        ? (getStorageClassConfig(a.storageClass)?.displayName ?? a.storageClass.metadata.name)
+        : (a.pvc.spec.storageClassName ?? '')
       ).localeCompare(
         b.storageClass
-          ? getStorageClassConfig(b.storageClass)?.displayName ?? b.storageClass.metadata.name
-          : b.pvc.spec.storageClassName ?? '',
+          ? (getStorageClassConfig(b.storageClass)?.displayName ?? b.storageClass.metadata.name)
+          : (b.pvc.spec.storageClassName ?? ''),
       ),
   },
   {

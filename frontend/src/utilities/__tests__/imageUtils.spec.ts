@@ -320,7 +320,7 @@ describe('getImageTagByContainer', () => {
     ({
       name,
       tags: tags.map((tagName) => ({ name: tagName })),
-    } as ImageInfo);
+    }) as ImageInfo;
 
   it('should return ImageTag with image and tag when container has a valid image', () => {
     const images = [

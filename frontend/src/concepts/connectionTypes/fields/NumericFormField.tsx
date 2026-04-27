@@ -67,7 +67,7 @@ const NumericFormField: React.FC<FieldProps<NumericField>> = ({
           'aria-readonly': isPreview,
           id,
           'data-testid': dataTestId,
-          placeholder: `${isDefault ? '' : currentValue ?? ''}`,
+          placeholder: `${isDefault ? '' : (currentValue ?? '')}`,
         }}
         inputName={id}
         value={currentValue ?? ''}

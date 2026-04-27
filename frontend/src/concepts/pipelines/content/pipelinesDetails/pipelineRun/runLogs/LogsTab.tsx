@@ -48,7 +48,7 @@ interface LogsTabProps {
 
 const LogsTab: React.FC<LogsTabProps> = ({ task, isCached }) => {
   const { namespace } = usePipelinesAPI();
-  const podName = isCached ? '' : task.status?.podName ?? '';
+  const podName = isCached ? '' : (task.status?.podName ?? '');
   const isFailedPod = task.status?.state === ExecutionStateKF.FAILED;
   const {
     pod,

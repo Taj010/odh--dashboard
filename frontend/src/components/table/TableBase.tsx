@@ -243,8 +243,8 @@ const TableBase = <T,>({
                       col.field === CHECKBOX_FIELD_ID || col.field === EXPAND_FIELD_ID
                         ? 'pf-c-table__toggle'
                         : col.field === KEBAB_FIELD_ID
-                        ? 'pf-c-table__action'
-                        : undefined
+                          ? 'pf-c-table__action'
+                          : undefined
                     }
                   >
                     {
