@@ -21,6 +21,31 @@ REMOTE="${REVIEW_PR_REMOTE:-upstream}"
 DEFAULT_BASE="${REVIEW_PR_BASE:-main}"
 REPO="${REVIEW_PR_REPO:-opendatahub-io/odh-dashboard}"
 
+# Colors (only when stdout is a TTY; still color stderr errors if stderr is a TTY)
+if [[ -t 1 ]]; then
+  C_RESET=$'\033[0m'
+  C_BOLD=$'\033[1m'
+  C_GREEN=$'\033[32m'
+  C_YELLOW=$'\033[33m'
+  C_CYAN=$'\033[36m'
+  C_DIM=$'\033[2m'
+else
+  C_RESET='' C_BOLD='' C_GREEN='' C_YELLOW='' C_CYAN='' C_DIM=''
+fi
+if [[ -t 2 ]]; then
+  C_RED=$'\033[31m'
+  C_ORANGE=$'\033[38;5;208m'
+  C_ERR_RESET=$'\033[0m'
+else
+  C_RED='' C_ORANGE='' C_ERR_RESET=''
+fi
+
+ok()   { printf '%s✓%s %s\n' "${C_GREEN}${C_BOLD}" "${C_RESET}${C_GREEN}" "$*${C_RESET}"; }
+info() { printf '%s→%s %s\n' "${C_CYAN}" "${C_RESET}" "$*"; }
+tip()  { printf '%s%s%s\n' "${C_YELLOW}" "$*" "${C_RESET}"; }
+warn() { printf '%swarning:%s %s\n' "${C_ORANGE}${C_BOLD}" "${C_ERR_RESET}" "$*" >&2; }
+die()  { printf '%serror:%s %s\n' "${C_RED}${C_BOLD}" "${C_ERR_RESET}" "$*" >&2; exit 1; }
+
 usage() {
   cat <<EOF
 Usage:
@@ -36,11 +61,6 @@ Env overrides:
   REVIEW_PR_BASE     Branch to return to on delete (default: main)
   REVIEW_PR_REPO     GitHub repo for gh lookups (default: opendatahub-io/odh-dashboard)
 EOF
-}
-
-die() {
-  echo "error: $*" >&2
-  exit 1
 }
 
 # Extract PR number from a URL or bare number. Returns empty if not a PR ref.
@@ -98,9 +118,8 @@ ensure_remote() {
 }
 
 ensure_clean_enough() {
-  # Allow setup even with dirty tree, but warn — checkout may fail.
   if ! git diff --quiet || ! git diff --cached --quiet; then
-    echo "warning: working tree has uncommitted changes; checkout may fail" >&2
+    warn "working tree has uncommitted changes; checkout may fail"
   fi
 }
 
@@ -118,23 +137,27 @@ cmd_setup() {
   local branch
   branch="$(resolve_branch_name "$pr_number" "$branch_arg")"
 
-  echo "→ PR #${pr_number}"
-  echo "→ local branch: ${branch}"
-  echo "→ remote: ${REMOTE}"
+  info "PR #${pr_number}"
+  info "local branch: ${C_BOLD}${branch}${C_RESET}"
+  info "remote: ${REMOTE}"
   echo
-  echo "+ git fetch ${REMOTE} pull/${pr_number}/head:${branch}"
-  git fetch "$REMOTE" "pull/${pr_number}/head:${branch}"
+  printf '%s+ git fetch %s pull/%s/head:%s%s\n' "${C_DIM}" "$REMOTE" "$pr_number" "$branch" "${C_RESET}"
+  if ! git fetch "$REMOTE" "pull/${pr_number}/head:${branch}"; then
+    die "git fetch failed for PR #${pr_number}"
+  fi
 
-  echo "+ git checkout ${branch}"
-  git checkout "$branch"
+  printf '%s+ git checkout %s%s\n' "${C_DIM}" "$branch" "${C_RESET}"
+  if ! git checkout "$branch"; then
+    die "git checkout failed for branch '${branch}'"
+  fi
 
   echo
-  echo "✓ checked out ${branch} (PR #${pr_number})"
+  ok "checked out ${C_BOLD}${branch}${C_RESET}${C_GREEN} (PR #${pr_number})"
   echo
-  echo "When done reviewing, delete with:"
-  echo "  $(basename "$0") --delete ${branch}"
-  echo "  # or:"
-  echo "  git checkout ${DEFAULT_BASE} && git branch -D ${branch}"
+  tip "When done reviewing, delete with:"
+  tip "  $(basename "$0") --delete ${branch}"
+  tip "  # or:"
+  tip "  git checkout ${DEFAULT_BASE} && git branch -D ${branch}"
 }
 
 cmd_delete() {
@@ -148,7 +171,6 @@ cmd_delete() {
   if [[ -n "$pr_number" ]]; then
     branch="$(resolve_branch_name "$pr_number" "$branch_arg")"
   elif [[ -n "$branch_arg" ]]; then
-    # rare: --delete somename owner:branch
     branch="$(extract_branch_name "$branch_arg")"
   else
     branch="$(extract_branch_name "$target")"
@@ -163,13 +185,17 @@ cmd_delete() {
   local current
   current="$(git branch --show-current)"
   if [[ "$current" == "$branch" ]]; then
-    echo "+ git checkout ${DEFAULT_BASE}"
-    git checkout "$DEFAULT_BASE"
+    printf '%s+ git checkout %s%s\n' "${C_DIM}" "$DEFAULT_BASE" "${C_RESET}"
+    if ! git checkout "$DEFAULT_BASE"; then
+      die "could not checkout '${DEFAULT_BASE}' before deleting '${branch}'"
+    fi
   fi
 
-  echo "+ git branch -D ${branch}"
-  git branch -D "$branch"
-  echo "✓ deleted local branch ${branch}"
+  printf '%s+ git branch -D %s%s\n' "${C_DIM}" "$branch" "${C_RESET}"
+  if ! git branch -D "$branch"; then
+    die "failed to delete branch '${branch}'"
+  fi
+  ok "deleted local branch ${C_BOLD}${branch}"
 }
 
 # --- main ---
@@ -189,7 +215,6 @@ esac
 
 [[ $# -ge 1 ]] || { usage; exit 1; }
 
-# Must run inside a git repo
 git rev-parse --is-inside-work-tree >/dev/null 2>&1 \
   || die "not inside a git repository"
 
