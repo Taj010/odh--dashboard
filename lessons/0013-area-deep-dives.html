@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lesson 13: Area Deep-Dives</title>
+  <link rel="stylesheet" href="../assets/style.css">
+  <style>
+    .area-card {
+      border: 2px solid var(--border);
+      border-radius: 8px;
+      padding: 1.2rem;
+      margin: 1.5rem 0;
+      background: white;
+    }
+    .area-card h3 {
+      margin-top: 0;
+      padding-bottom: 0.4rem;
+      border-bottom: 2px solid var(--accent);
+    }
+    .area-card .meta {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.5rem;
+      margin: 0.8rem 0;
+      font-size: 0.9rem;
+    }
+    .area-card .meta dt { font-weight: 600; color: #555; }
+    .area-card .meta dd { margin: 0; }
+  </style>
+</head>
+<body>
+
+<h1>Lesson 13: Area Deep-Dives</h1>
+<p><strong>Goal:</strong> Deep understanding of the specific dashboard areas you'll be working on — what they do, where the code lives, what K8s resources are involved, and how to see them running locally.</p>
+
+<hr>
+
+<h2>The one-sentence version</h2>
+<p><strong>Each area is a self-contained feature with its own pages, concepts, API calls, and (often) feature flags — this lesson maps all seven areas you'll focus on.</strong></p>
+
+<div class="callout callout-info">
+  <strong>How to use this page</strong>
+  This is a reference. Read the area you're about to work on. Each section tells you: what it is, where the code lives, what K8s resources are involved, and how to enable it locally.
+</div>
+
+<hr>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div class="area-card">
+<h3>1. Agent Ops (Agent Runtimes)</h3>
+
+<p><strong>What it is:</strong> A feature for deploying and managing AI agents — autonomous LLM-powered tools that can use external tools/APIs. Think: chatbots that can query databases, call APIs, and take actions.</p>
+
+<dl class="meta">
+  <dt>Frontend code</dt>
+  <dd><code>packages/agent-ops/frontend/src/app/pages/agentRuntimes/</code></dd>
+  <dt>K8s resource</dt>
+  <dd><code>AgentRuntime</code> Custom Resource</dd>
+  <dt>Feature flags</dt>
+  <dd><code>agentOps</code>, <code>agentOpsDeploy</code>, <code>agentsCatalog</code> (SupportedArea: <code>AGENT_OPS</code>)</dd>
+  <dt>BFF</dt>
+  <dd><code>packages/agent-ops/bff/</code> (Go backend-for-frontend)</dd>
+</dl>
+
+<h4>What a user does here:</h4>
+<ul>
+  <li>Create an agent runtime (choose an LLM, configure tools, set resources)</li>
+  <li>Deploy the agent to the cluster</li>
+  <li>Monitor agent status, logs, and interactions</li>
+  <li>Configure MCP (Model Context Protocol) servers the agent can use</li>
+</ul>
+
+<h4>Key concepts:</h4>
+<ul>
+  <li><strong>AgentRuntime CR</strong> — the K8s resource that defines an agent (model, tools, memory)</li>
+  <li><strong>MCP servers</strong> — external tool providers the agent connects to</li>
+  <li><strong>RBAC</strong> — users need specific permissions to create/manage agents</li>
+</ul>
+
+<h4>How to enable locally:</h4>
+<pre><code># Option 1: URL feature flag (precise syntax)
+http://localhost:4010?devFeatureFlags=agentOps=true
+
+# Or open the flag launcher:
+http://localhost:4010?devFeatureFlags
+# Then toggle "agentOps" in the blue banner
+
+# Option 2: Dashboard config on cluster
+oc edit odhdashboardconfig -n redhat-ods-applications
+# Set in spec.dashboardConfig:
+#   agentOps: true</code></pre>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div class="area-card">
+<h3>2. RBAC (Role-Based Access Control)</h3>
+
+<p><strong>What it is:</strong> The system that controls who can do what. In the dashboard, RBAC determines which pages a user sees, which actions are available, and what resources they can access.</p>
+
+<dl class="meta">
+  <dt>Frontend code</dt>
+  <dd><code>frontend/src/concepts/userConfigs/</code>, <code>concepts/areas/</code></dd>
+  <dt>K8s mechanism</dt>
+  <dd>SubjectAccessReview (SAR), RoleBindings, ClusterRoles</dd>
+  <dt>Feature flag</dt>
+  <dd>Always active (core system)</dd>
+  <dt>Backend</dt>
+  <dd>Backend performs SAR checks on behalf of the user</dd>
+</dl>
+
+<h4>How RBAC works in this dashboard:</h4>
+<ol>
+  <li>User logs in (via OpenShift OAuth)</li>
+  <li>Dashboard checks if user is admin (<code>cluster-admin</code> or dashboard-specific role)</li>
+  <li>Non-admin users see a limited UI (no admin pages, fewer actions)</li>
+  <li>Before performing actions, the backend checks if the user's token has permission</li>
+</ol>
+
+<h4>Key patterns in the code:</h4>
+<pre><code>// Check if user is admin
+const { isAdmin } = useUser();
+
+// Conditionally show admin-only content
+{isAdmin && &lt;AdminPanel /&gt;}
+
+// RBAC-gated actions
+// The backend returns 403 if user lacks permission
+// The frontend should hide buttons the user can't use</code></pre>
+
+<h4>Common RBAC issues:</h4>
+<ul>
+  <li><strong>Don't assume <code>isAdmin</code> means "can do everything"</strong> — check specific permissions</li>
+  <li><strong>Hide controls the user can't use</strong> — don't show a "Delete" button if they'll get 403</li>
+  <li><strong>Test both paths</strong> — admin AND non-admin users</li>
+</ul>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div class="area-card">
+<h3>3. MLflow</h3>
+
+<p><strong>What it is:</strong> An experiment tracking and model registry platform. In RHOAI, MLflow integration lets users track metrics, parameters, and artifacts from their training runs — visible in the dashboard.</p>
+
+<dl class="meta">
+  <dt>Frontend code</dt>
+  <dd><code>packages/mlflow/</code> (federated module) + <code>frontend/src/concepts/mlflow/</code> (hooks/selectors)</dd>
+  <dt>K8s resource</dt>
+  <dd><code>MLflowServer</code> CR (needs the MLflow operator installed)</dd>
+  <dt>Feature flag</dt>
+  <dd>SupportedArea: <code>MLFLOW</code> — requires <code>DataScienceStackComponent.MLFLOW</code></dd>
+  <dt>Operator</dt>
+  <dd>MLflow Operator (separate install)</dd>
+</dl>
+
+<h4>What a user does:</h4>
+<ul>
+  <li>View experiment runs and their metrics (loss, accuracy, etc.)</li>
+  <li>Compare runs across experiments</li>
+  <li>Register models from successful runs</li>
+  <li>Access the MLflow UI (embedded or linked)</li>
+</ul>
+
+<h4>How to see it locally:</h4>
+<pre><code># MLflow requires the MLflow operator installed on your cluster
+# Check if the CRD exists:
+oc get crd mlflowservers.mlflow.org
+
+# If not installed, the dashboard won't show MLflow features
+# Ask your team for a cluster with MLflow operator pre-installed
+
+# Or: the dashboard gracefully hides MLflow if CRD is absent</code></pre>
+
+<h4>Code pattern:</h4>
+<pre><code>// The dashboard checks if the MLflow CRD exists on the cluster
+// If yes → show MLflow features
+// If no → hide them (no error, just absent)
+// This is the "CRD discovery" pattern used across the dashboard</code></pre>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div class="area-card">
+<h3>4. MCP Registry</h3>
+
+<p><strong>What it is:</strong> A registry of Model Context Protocol (MCP) servers — tools and data sources that AI agents can use. Think of it as a catalog of "plugins" for AI agents.</p>
+
+<dl class="meta">
+  <dt>Frontend code</dt>
+  <dd><code>packages/mlflow/</code> (MCP registry handler in BFF + frontend module)</dd>
+  <dt>K8s resource</dt>
+  <dd>MCP server configurations (ConfigMaps or CRs)</dd>
+  <dt>Feature flag</dt>
+  <dd><code>mcpRegistry</code> (SupportedArea: <code>MCP_REGISTRY</code>) — tech preview</dd>
+  <dt>Relates to</dt>
+  <dd>Agent Ops — agents consume MCP servers</dd>
+</dl>
+
+<h4>What it manages:</h4>
+<ul>
+  <li>List of available MCP servers (tools the agents can use)</li>
+  <li>Server configuration (URL, auth, capabilities)</li>
+  <li>Which agents have access to which MCP servers</li>
+  <li>Health status of registered servers</li>
+</ul>
+
+<h4>Key concept — MCP (Model Context Protocol):</h4>
+<p>MCP is a standard for connecting AI models to external tools. An MCP server might provide:</p>
+<ul>
+  <li>Database queries (agent can look up records)</li>
+  <li>API calls (agent can create tickets, send emails)</li>
+  <li>File access (agent can read/write documents)</li>
+  <li>Web browsing (agent can fetch pages)</li>
+</ul>
+
+<h4>Enable locally:</h4>
+<pre><code># MCP Registry has its own flag (tech preview)
+http://localhost:4010?devFeatureFlags=mcpRegistry=true
+
+# Or use the dev flags banner to toggle "mcpRegistry"
+# Note: lives in the mlflow package, not agent-ops</code></pre>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div class="area-card">
+<h3>5. Hardware Profiles</h3>
+
+<p><strong>What it is:</strong> Admin-defined templates that set CPU, memory, and GPU allocations for workbenches and model servers. Instead of users guessing resource amounts, admins create named profiles like "Small (2 CPU, 8Gi RAM)" or "GPU Large (4 NVIDIA A100)".</p>
+
+<dl class="meta">
+  <dt>Frontend code</dt>
+  <dd><code>packages/hardware-profiles/</code> (source), <code>frontend/src/pages/hardwareProfiles/</code>, <code>concepts/hardwareProfiles/</code></dd>
+  <dt>K8s resource</dt>
+  <dd><code>HardwareProfile</code> Custom Resource</dd>
+  <dt>Feature flag</dt>
+  <dd>Generally available (no flag needed)</dd>
+  <dt>Admin only</dt>
+  <dd>Creating/editing profiles is admin-only; users just select them</dd>
+</dl>
+
+<h4>What an admin does:</h4>
+<ul>
+  <li>Create hardware profiles (name, description, resource limits)</li>
+  <li>Set tolerations (which GPU nodes the workbench can schedule on)</li>
+  <li>Enable/disable profiles</li>
+  <li>Set as default for new workbenches</li>
+</ul>
+
+<h4>What a user sees:</h4>
+<ul>
+  <li>A dropdown when creating a workbench: "Select hardware profile"</li>
+  <li>Profile name + resource summary (e.g., "Medium — 4 CPU, 16Gi RAM")</li>
+</ul>
+
+<h4>Code structure:</h4>
+<pre><code>pages/hardwareProfiles/
+├── HardwareProfiles.tsx          ← Admin list page
+├── ManageHardwareProfile.tsx     ← Create/edit form
+├── HardwareProfilesTable.tsx     ← Table component
+└── components/
+    ├── NodeResourceSection.tsx   ← CPU/memory inputs
+    ├── TolerationSection.tsx     ← GPU toleration config
+    └── ...</code></pre>
+
+<h4>Enable locally:</h4>
+<pre><code># Hardware Profiles should be visible in the admin nav
+# Make sure you're logged in as an admin user
+# Navigate to: Settings → Hardware profiles
+# If the nav item is missing, check the dashboard config:
+oc get odhdashboardconfig -o yaml
+# Look for: disableHardwareProfiles: false</code></pre>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div class="area-card">
+<h3>6. Pipelines</h3>
+
+<p><strong>What it is:</strong> Kubeflow Pipelines integration — lets users define, run, and monitor automated ML workflows (data preprocessing → training → evaluation → deployment).</p>
+
+<dl class="meta">
+  <dt>Frontend code</dt>
+  <dd><code>frontend/src/pages/pipelines/</code>, <code>concepts/pipelines/</code></dd>
+  <dt>K8s resources</dt>
+  <dd>Pipeline, PipelineRun, Task (Tekton/KFP)</dd>
+  <dt>Feature flag</dt>
+  <dd>Requires Data Science Pipelines Application (DSPA) installed per project</dd>
+  <dt>Backend</dt>
+  <dd>Talks to the KFP API server (separate from the K8s API)</dd>
+</dl>
+
+<h4>What a user does:</h4>
+<ul>
+  <li>Upload/import pipeline definitions (YAML or from a notebook)</li>
+  <li>Create pipeline runs (one-time or scheduled)</li>
+  <li>View run status, logs, and artifacts</li>
+  <li>Compare runs across experiments</li>
+  <li>Create experiments to group related runs</li>
+</ul>
+
+<h4>Key concept — DSPA (Data Science Pipelines Application):</h4>
+<p>Pipelines aren't available by default in a project. An admin must install a DSPA resource in the namespace first. The dashboard checks for this and shows "Configure pipelines" if it's missing.</p>
+
+<h4>How to see pipelines locally:</h4>
+<pre><code># Check if DSPA exists in your project
+oc get datasciencepipelinesapplications -n your-project
+
+# If not:
+# 1. Navigate to your project in the dashboard
+# 2. Click "Pipelines" in the project nav
+# 3. You'll see "Configure pipeline server" prompt
+# 4. Or ask your admin to create a DSPA
+
+# The dashboard shows pipelines differently:
+# - No DSPA: "Configure pipeline server" empty state
+# - DSPA exists but no pipelines: "Import pipeline" empty state
+# - DSPA + pipelines: full pipeline list/table</code></pre>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div class="area-card">
+<h3>7. Test Connections</h3>
+
+<p><strong>What it is:</strong> A feature that verifies data connections work before using them — tests that credentials are valid and the endpoint is reachable.</p>
+
+<dl class="meta">
+  <dt>Frontend code</dt>
+  <dd><code>frontend/src/concepts/connectionTypes/</code> (test connection logic)</dd>
+  <dt>Mechanism</dt>
+  <dd>Backend makes a test request using the provided credentials</dd>
+  <dt>Feature flag</dt>
+  <dd>SupportedArea: <code>CONNECTION_TEST</code></dd>
+  <dt>Related to</dt>
+  <dd>Connection Types, Data Connections</dd>
+</dl>
+
+<h4>What a user does:</h4>
+<ul>
+  <li>Fill in connection details (endpoint URL, credentials, bucket name)</li>
+  <li>Click "Test connection" before saving</li>
+  <li>See success/failure feedback</li>
+  <li>Troubleshoot connection issues before they break a pipeline</li>
+</ul>
+
+<h4>How it works under the hood:</h4>
+<ol>
+  <li>User enters connection details in the form</li>
+  <li>Clicks "Test connection"</li>
+  <li>Frontend sends the details to the backend</li>
+  <li>Backend attempts to connect (e.g., lists S3 bucket contents)</li>
+  <li>Returns success or a descriptive error</li>
+</ol>
+
+<h4>Enable locally:</h4>
+<pre><code># Test connections requires a real endpoint to test against
+# For S3: you need a real (or MinIO) S3 endpoint
+# The dashboard config may need:
+#   disableConnectionTypes: false
+
+# To see the "Test" button:
+# 1. Go to a project
+# 2. Click "Data connections" or "Add connection"
+# 3. Fill in credentials
+# 4. Look for "Test connection" button</code></pre>
+</div>
+
+<hr>
+
+<h2>Quick reference: where each area's code lives</h2>
+
+<table>
+  <thead><tr><th>Area</th><th>Pages</th><th>Concepts</th><th>Package</th></tr></thead>
+  <tbody>
+    <tr><td>Agent Ops</td><td>—</td><td>—</td><td><code>packages/agent-ops/</code></td></tr>
+    <tr><td>RBAC</td><td><code>pages/</code> (throughout)</td><td><code>concepts/userConfigs/</code>, <code>concepts/userSSAR/</code></td><td>—</td></tr>
+    <tr><td>MLflow</td><td>—</td><td><code>concepts/mlflow/</code></td><td><code>packages/mlflow/</code></td></tr>
+    <tr><td>MCP Registry</td><td>—</td><td>—</td><td><code>packages/mlflow/</code> (BFF handler)</td></tr>
+    <tr><td>Hardware Profiles</td><td><code>pages/hardwareProfiles/</code></td><td><code>concepts/hardwareProfiles/</code></td><td><code>packages/hardware-profiles/</code></td></tr>
+    <tr><td>Pipelines</td><td><code>pages/pipelines/</code></td><td><code>concepts/pipelines/</code></td><td>—</td></tr>
+    <tr><td>Test Connections</td><td>—</td><td><code>concepts/connectionTypes/</code></td><td>—</td></tr>
+  </tbody>
+</table>
+
+<hr>
+
+<h2>Key takeaways</h2>
+<ul>
+  <li><strong>Each area has a clear code home</strong> — either in <code>pages/</code> + <code>concepts/</code> or in a <code>packages/</code> module</li>
+  <li><strong>Feature flags gate new features</strong> — use <code>?devFeatureFlags</code> to toggle them</li>
+  <li><strong>CRD presence gates features</strong> — some features only show when an operator is installed (MLflow, Pipelines)</li>
+  <li><strong>Admin vs user views differ</strong> — always think about which role sees what</li>
+  <li><strong>Agent Ops + MCP Registry</strong> are in the gen-ai package</li>
+  <li><strong>Hardware Profiles + Pipelines</strong> are in the main frontend</li>
+</ul>
+
+<h2>What's next</h2>
+<p>Now that you know what each area does, the final lesson covers <strong>how to actually navigate and set things up</strong> on a real cluster — enabling flags, installing operators, and getting each area visible in your local dashboard.</p>
+
+<div class="lesson-nav">
+  <a href="0012-domain-deep-dive.html">&larr; Lesson 12: Domain Deep-Dive</a>
+  <a href="0014-dashboard-navigation-setup.html">Next: Dashboard Navigation & Setup &rarr;</a>
+</div>
+
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

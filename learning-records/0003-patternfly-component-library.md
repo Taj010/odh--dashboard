@@ -1,0 +1,3 @@
+# PatternFly component library and project styling rules introduced
+
+The user learned what PatternFly is (Red Hat's UI component library, v6 in this project), the three PF packages (@patternfly/react-core, react-table, react-icons), the priority order for styling (props → layout components → utility classes → SCSS with tokens), design tokens vs hardcoded values, when to fix upstream vs locally (file issue + local workaround with TODO), project wrapper components (DashboardModalFooter, Table/TableBase, DeleteModal), and class naming conventions (odh-* prefix). All grounded in real codebase examples (ExternalLink.tsx, DeleteModal.tsx). Next zone: hands-on dev workflow (running dev server, making a change) or deeper PatternFly practice with a specific component.

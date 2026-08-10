@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lesson 2: TypeScript for JS Developers</title>
+  <link rel="stylesheet" href="../assets/style.css">
+  <style>
+    .side-by-side { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin: 1rem 0; }
+    .side-by-side pre { margin: 0; }
+    .side-by-side .label { font-size: 0.8rem; font-weight: 600; margin-bottom: 0.3rem; }
+    .side-by-side .label-js { color: #b08800; }
+    .side-by-side .label-ts { color: #3178c6; }
+    @media (max-width: 600px) { .side-by-side { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+
+<h1>Lesson 2: TypeScript for JS Developers</h1>
+<p><strong>Goal:</strong> Read and understand the TypeScript you'll encounter in this codebase. You won't need to become a TS expert — just fluent enough to not be blocked when reading or editing files.</p>
+
+<hr>
+
+<h2>The one-sentence version</h2>
+
+<p><strong>TypeScript is JavaScript with labels on your data.</strong></p>
+
+<p>You already write JS. TypeScript adds <em>type annotations</em> — little labels that say "this variable is a string" or "this function returns a number." The computer checks those labels <em>before</em> your code runs, catching bugs that would otherwise show up at runtime.</p>
+
+<p>Every <code>.ts</code> and <code>.tsx</code> file in this repo is TypeScript. Every <code>.js</code> file you've written is already valid TypeScript — TS is a <strong>superset</strong> of JS.</p>
+
+<div class="callout callout-info">
+  <strong>Primary source</strong>
+  The <a href="https://www.typescriptlang.org/docs/handbook/typescript-in-5-minutes.html">TypeScript for JavaScript Programmers</a> page on the official site is the single best thing to read after this lesson. It's short and assumes JS knowledge — exactly your starting point.
+</div>
+
+<h2>1. Type annotations on variables</h2>
+
+<p>In JS, you declare a variable and put whatever you want in it. In TS, you can add a <strong>type annotation</strong> after the name:</p>
+
+<div class="side-by-side">
+  <div>
+    <div class="label label-js">JavaScript</div>
+    <pre><code>const name = "Alice";
+let count = 0;
+let isAdmin = true;</code></pre>
+  </div>
+  <div>
+    <div class="label label-ts">TypeScript</div>
+    <pre><code>const name: string = "Alice";
+let count: number = 0;
+let isAdmin: boolean = true;</code></pre>
+  </div>
+</div>
+
+<p>Most of the time, you <strong>don't even need the annotation</strong> — TypeScript is smart enough to figure it out from the value. This is called <strong>type inference</strong>:</p>
+
+<pre><code>// TS already knows this is a string — no annotation needed
+const name = "Alice";</code></pre>
+
+<p>You'll see annotations most often on function parameters (where TS can't guess) and on complex objects.</p>
+
+<h2>2. Type annotations on functions</h2>
+
+<p>This is where TypeScript shines — and where you'll see it constantly in this codebase.</p>
+
+<div class="side-by-side">
+  <div>
+    <div class="label label-js">JavaScript</div>
+    <pre><code>const truncateString = (str, length) => {
+  if (str.length <= length) {
+    return str;
+  }
+  return str.substring(0, length) + '…';
+};</code></pre>
+  </div>
+  <div>
+    <div class="label label-ts">TypeScript</div>
+    <pre><code>const truncateString = (str: string, length: number): string => {
+  if (str.length <= length) {
+    return str;
+  }
+  return `${str.substring(0, length)}…`;
+};</code></pre>
+  </div>
+</div>
+
+<div class="callout callout-success">
+  <strong>This is real code</strong>
+  The TS version above is from <code>frontend/src/utilities/string.ts</code> in this repo. The pattern <code>(param: Type): ReturnType</code> is something you'll read hundreds of times.
+</div>
+
+<p>The <code>: void</code> return type means "this function returns nothing":</p>
+
+<pre><code>// from frontend/src/utilities/string.ts
+export const downloadString = (filename: string, data: string): void => {
+  const element = document.createElement('a');
+  // ... creates a download link and clicks it
+};</code></pre>
+
+<h2>3. Defining object shapes with <code>type</code></h2>
+
+<p>In JS, objects can have any shape. In TS, you define what shape an object should have using <code>type</code>:</p>
+
+<pre><code>type ExternalLinkProps = {
+  text: string;
+  to: string;
+  testId?: string;  // The ? means this property is optional
+};</code></pre>
+
+<p>This is from <code>frontend/src/components/ExternalLink.tsx</code>. It says: "An <code>ExternalLinkProps</code> object must have <code>text</code> (string) and <code>to</code> (string), and may optionally have <code>testId</code> (string)."</p>
+
+<div class="callout callout-warn">
+  <strong>The <code>?</code> means optional</strong>
+  You'll see <code>?</code> everywhere. <code>lastActivity?: number</code> means "this property might not exist." Without the <code>?</code>, the property is required — TypeScript will error if you forget it.
+</div>
+
+<h2>4. Types on React components</h2>
+
+<p>This is the pattern you'll see <strong>most often</strong>. Here's a real component from the codebase — notice it's almost identical to the React you already write, just with types added:</p>
+
+<pre><code>// frontend/src/components/ExternalLink.tsx
+
+type ExternalLinkProps = {
+  text: string;
+  to: string;
+  testId?: string;
+};
+
+const ExternalLink: React.FC&lt;ExternalLinkProps&gt; = ({ text, to, testId }) =&gt; (
+  &lt;Button
+    variant="link"
+    data-testid={testId}
+    isInline
+    component="a"
+    href={to}
+    target="_blank"
+    rel="noopener noreferrer"
+    icon={&lt;ExternalLinkAltIcon /&gt;}
+    iconPosition="end"
+  &gt;
+    {text}
+  &lt;/Button&gt;
+);</code></pre>
+
+<p>Let's break down the new syntax:</p>
+
+<table>
+  <thead>
+    <tr><th>Syntax</th><th>What it means</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>type ExternalLinkProps = { ... }</code></td>
+      <td>Define the shape of the component's props</td>
+    </tr>
+    <tr>
+      <td><code>React.FC&lt;ExternalLinkProps&gt;</code></td>
+      <td>"This is a React Function Component that accepts <code>ExternalLinkProps</code>"</td>
+    </tr>
+    <tr>
+      <td><code>&lt;ExternalLinkProps&gt;</code></td>
+      <td>This is called a <strong>generic</strong> — it's like passing a type as an argument (more on this below)</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>If you already used PropTypes in React, <code>type</code> replaces that — but it's checked at build time, not runtime, so bugs are caught <em>before</em> the browser.</p>
+
+<h2>5. The <code>interface</code> keyword</h2>
+
+<p>You'll also see <code>interface</code> — it's almost the same as <code>type</code> for defining object shapes:</p>
+
+<div class="side-by-side">
+  <div>
+    <div class="label label-ts">type</div>
+    <pre><code>type WarningNotification = {
+  title: string;
+  message: string;
+};</code></pre>
+  </div>
+  <div>
+    <div class="label label-ts">interface</div>
+    <pre><code>interface WarningNotification {
+  title: string;
+  message: string;
+}</code></pre>
+  </div>
+</div>
+
+<p>For day-to-day work in this repo: <strong>they're interchangeable</strong>. Don't worry about the difference yet. The codebase uses <code>type</code> more often.</p>
+
+<h2>6. Enums — named constants</h2>
+
+<p>An <code>enum</code> is a way to define a set of named values. You'll see them throughout the codebase for status codes, categories, and resource types:</p>
+
+<pre><code>// from frontend/src/concepts/hardwareProfiles/types.ts
+export enum HardwareProfileWarningType {
+  HARDWARE_PROFILES_MISSING_CPU_MEMORY = 'hardware_profiles_missing_cpu_memory',
+  CANNOT_BE_NEGATIVE = 'cannot_be_negative',
+  CANNOT_BE_DECIMAL = 'cannot_be_decimal',
+  INVALID_UNIT = 'invalid_unit',
+  MISSING_VALUE = 'missing_value',
+  OUT_OF_RANGE = 'out_of_range',
+  OTHER = 'other',
+}</code></pre>
+
+<p>Instead of writing <code>'out_of_range'</code> as a raw string (easy to mistype), you write <code>HardwareProfileWarningType.OUT_OF_RANGE</code>. TypeScript will autocomplete it and catch typos.</p>
+
+<p>Think of enums as a <strong>dropdown menu for your code</strong> — they restrict a value to a specific set of options.</p>
+
+<h2>7. Union types — "this OR that"</h2>
+
+<p>The <code>|</code> symbol means "or":</p>
+
+<pre><code>// This value can be a string or a number
+let port: string | number;
+
+// This status must be one of these exact strings
+type ConnectionTestStatus = 'not-tested' | 'testing' | 'verified' | 'failed';</code></pre>
+
+<p>String unions (like <code>'verified' | 'failed'</code>) act like lightweight enums — the codebase uses both patterns.</p>
+
+<h2>8. Generics — types that take arguments</h2>
+
+<p>This is the scariest-looking syntax you'll encounter, but the idea is simple. Generics let you write a type or function that works with <em>multiple</em> types:</p>
+
+<pre><code>// Without generics — only works for strings
+function firstItem(items: string[]): string {
+  return items[0];
+}
+
+// With generics — works for ANY type
+function firstItem&lt;T&gt;(items: T[]): T {
+  return items[0];
+}
+
+firstItem&lt;string&gt;(["a", "b"]);  // returns string
+firstItem&lt;number&gt;([1, 2, 3]);   // returns number</code></pre>
+
+<p>The <code>&lt;T&gt;</code> is a <strong>placeholder</strong> — "I don't know the type yet; the caller will fill it in." You saw this already with <code>React.FC&lt;ExternalLinkProps&gt;</code> — React provides the generic <code>FC&lt;P&gt;</code> component, and you fill in <code>P</code> with your props type.</p>
+
+<p>Real example from this repo:</p>
+
+<pre><code>// from frontend/src/types.ts
+export type PrometheusQueryResponse&lt;TResultExtraProps extends object = object&gt; = {
+  data: {
+    result: ({
+      value: [number, string];
+    } &amp; TResultExtraProps)[];
+    resultType: string;
+  };
+  status: string;
+};</code></pre>
+
+<div class="callout callout-info">
+  <strong>Don't panic about complex generics</strong>
+  When you encounter something like <code>&lt;TResultExtraProps extends object = object&gt;</code>, read it as: "This type has a customizable part called <code>TResultExtraProps</code>, which defaults to <code>object</code>." You don't need to master this to contribute — just recognize the pattern.
+</div>
+
+<h2>9. The operators you'll see everywhere</h2>
+
+<table>
+  <thead>
+    <tr><th>Syntax</th><th>Name</th><th>What it does</th><th>Example</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>?.</code></td>
+      <td>Optional chaining</td>
+      <td>Access a property that might not exist (returns <code>undefined</code> instead of crashing)</td>
+      <td><code>options?.multiPrefix</code></td>
+    </tr>
+    <tr>
+      <td><code>??</code></td>
+      <td>Nullish coalescing</td>
+      <td>Use a fallback if value is <code>null</code> or <code>undefined</code></td>
+      <td><code>options?.multiPrefix ?? ''</code></td>
+    </tr>
+    <tr>
+      <td><code>!</code></td>
+      <td>Non-null assertion</td>
+      <td>"I promise this isn't null" (use sparingly — bypasses safety)</td>
+      <td><code>element!.textContent</code></td>
+    </tr>
+    <tr>
+      <td><code>as</code></td>
+      <td>Type assertion</td>
+      <td>"Treat this value as this type" (manual override)</td>
+      <td><code>data as NotebookKind</code></td>
+    </tr>
+    <tr>
+      <td><code>as const</code></td>
+      <td>Const assertion</td>
+      <td>Make values readonly and their types narrow (exact strings, not just <code>string</code>)</td>
+      <td><code>{ STATUS: '...' } as const</code></td>
+    </tr>
+  </tbody>
+</table>
+
+<p>Real usage from <code>frontend/src/utilities/string.ts</code>:</p>
+
+<pre><code>// ?. and ?? working together
+options?.multiPrefix ?? ''
+// Translation: "If options exists AND has multiPrefix, use it. Otherwise, use empty string."</code></pre>
+
+<p>And from <code>frontend/src/concepts/connectionTypes/types.ts</code>:</p>
+
+<pre><code>export const CONNECTION_TEST_ANNOTATIONS = {
+  STATUS: 'opendatahub.io/connection-test-status',
+  TIMESTAMP: 'opendatahub.io/connection-test-timestamp',
+  MESSAGE: 'opendatahub.io/connection-test-message',
+} as const;</code></pre>
+
+<p>That <code>as const</code> means the <code>STATUS</code> field's type isn't just <code>string</code> — it's the <em>exact</em> string <code>'opendatahub.io/connection-test-status'</code>. This helps TS catch cases where you accidentally pass the wrong annotation key.</p>
+
+<h2>10. The <code>&amp;</code> intersection — combining types</h2>
+
+<p>Where <code>|</code> means "this OR that," <code>&amp;</code> means "this AND that":</p>
+
+<pre><code>type TolerationSettings = {
+  enabled: boolean;
+  key: string;
+};
+
+type NotebookTolerationFormSettings = TolerationSettings & {
+  error?: string;
+};
+
+// NotebookTolerationFormSettings has: enabled, key, AND error?</code></pre>
+
+<p>This is from <code>frontend/src/types.ts</code>. It says: "A <code>NotebookTolerationFormSettings</code> is everything in <code>TolerationSettings</code>, plus an optional <code>error</code> field." This is how types get composed — building bigger shapes from smaller ones.</p>
+
+<h2>Quick reference: JS → TS translation table</h2>
+
+<table>
+  <thead>
+    <tr><th>What you want to say</th><th>JS</th><th>TS</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>A string variable</td><td><code>const x = "hi"</code></td><td><code>const x: string = "hi"</code> (or just infer it)</td></tr>
+    <tr><td>Function params</td><td><code>(a, b) =></code></td><td><code>(a: string, b: number) =></code></td></tr>
+    <tr><td>Function return type</td><td>(implicit)</td><td><code>(): string =></code> or <code>(): void =></code></td></tr>
+    <tr><td>Object shape</td><td>PropTypes / nothing</td><td><code>type MyProps = { ... }</code></td></tr>
+    <tr><td>Optional property</td><td>defaultProps</td><td><code>name?: string</code></td></tr>
+    <tr><td>React component type</td><td>(none)</td><td><code>React.FC&lt;MyProps&gt;</code></td></tr>
+    <tr><td>Set of named constants</td><td>plain object</td><td><code>enum Status { ... }</code></td></tr>
+    <tr><td>"Could be X or Y"</td><td>(runtime checks)</td><td><code>string | number</code></td></tr>
+    <tr><td>An array of things</td><td><code>[1, 2, 3]</code></td><td><code>number[]</code> or <code>Array&lt;number&gt;</code></td></tr>
+    <tr><td>A record / dictionary</td><td>plain object</td><td><code>Record&lt;string, boolean&gt;</code></td></tr>
+  </tbody>
+</table>
+
+<hr>
+
+<h2>Check your understanding</h2>
+
+<div class="quiz" data-answer="c" data-hint="The ? after a property name makes it optional.">
+  <p class="quiz-q">1. What does <code>testId?: string</code> mean in a type definition?</p>
+  <label><input type="radio" name="q1" value="a"> testId must always be provided as a string value</label>
+  <label><input type="radio" name="q1" value="b"> testId is a string that must never be left undefined</label>
+  <label><input type="radio" name="q1" value="c"> testId is an optional property that is a string if given</label>
+  <label><input type="radio" name="q1" value="d"> testId is a required property that can be set to null</label>
+  <div class="feedback"></div>
+</div>
+
+<div class="quiz" data-answer="b" data-hint="void means the function returns nothing.">
+  <p class="quiz-q">2. What does <code>(filename: string, data: string): void</code> tell you?</p>
+  <label><input type="radio" name="q2" value="a"> The function takes two arguments and returns a text string</label>
+  <label><input type="radio" name="q2" value="b"> The function takes two strings and doesn't return anything</label>
+  <label><input type="radio" name="q2" value="c"> The function takes two arguments and returns a boolean value</label>
+  <label><input type="radio" name="q2" value="d"> The function takes two strings and returns undefined always</label>
+  <div class="feedback"></div>
+</div>
+
+<div class="quiz" data-answer="d" data-hint="React.FC&lt;P&gt; means a Function Component whose props have shape P.">
+  <p class="quiz-q">3. What does <code>React.FC&lt;ExternalLinkProps&gt;</code> mean?</p>
+  <label><input type="radio" name="q3" value="a"> A class component that extends the ExternalLinkProps types</label>
+  <label><input type="radio" name="q3" value="b"> A hook that returns the ExternalLinkProps values on each call</label>
+  <label><input type="radio" name="q3" value="c"> A context provider that wraps children in ExternalLinkProps data</label>
+  <label><input type="radio" name="q3" value="d"> A function component whose props must match ExternalLinkProps</label>
+  <div class="feedback"></div>
+</div>
+
+<div class="quiz" data-answer="a" data-hint="?. returns undefined instead of throwing. ?? provides a fallback for null/undefined.">
+  <p class="quiz-q">4. What does <code>options?.multiPrefix ?? ''</code> evaluate to when <code>options</code> is <code>undefined</code>?</p>
+  <label><input type="radio" name="q4" value="a"> An empty string because both operators chain to the fallback</label>
+  <label><input type="radio" name="q4" value="b"> The value null because optional chaining always returns null</label>
+  <label><input type="radio" name="q4" value="c"> It throws an error because you can't access a missing object</label>
+  <label><input type="radio" name="q4" value="d"> The string "undefined" because JS converts the missing value</label>
+  <div class="feedback"></div>
+</div>
+
+<div class="quiz" data-answer="c" data-hint="&amp; combines two types so the result has ALL properties from both.">
+  <p class="quiz-q">5. What does <code>type B = A &amp; { error?: string }</code> create?</p>
+  <label><input type="radio" name="q5" value="a"> A type that has only the error property and nothing from A</label>
+  <label><input type="radio" name="q5" value="b"> A type that is either A or an object with an error property</label>
+  <label><input type="radio" name="q5" value="c"> A type that has all properties from A plus an optional error</label>
+  <label><input type="radio" name="q5" value="d"> A type that removes the error property from the original A</label>
+  <div class="feedback"></div>
+</div>
+
+<hr>
+
+<h2>Recommended reading</h2>
+<p>The best next resource is <a href="https://www.typescriptlang.org/docs/handbook/typescript-in-5-minutes.html">TypeScript for JavaScript Programmers</a> on the official TypeScript site. It covers everything in this lesson and a bit more, assuming you know JS — exactly where you are now.</p>
+
+<p>After that, try opening <code>frontend/src/components/ExternalLink.tsx</code> and <code>frontend/src/components/PasswordHiddenText.tsx</code> in the repo. They're short, real components that use the exact patterns covered here. Try reading them and see if the types make sense.</p>
+
+<h2>What's next</h2>
+<p>Now that you can read TypeScript, the next lesson will cover <strong>PatternFly</strong> — the component library that provides every button, table, modal, and layout in this dashboard. You'll learn how to find components, read PatternFly docs, and use them in the codebase.</p>
+
+<div class="footer-reminder">
+  Questions? Something unclear? Ask your teacher (the agent) — I can explain any part of this in more detail, show you more real examples from the repo, or slow down on any concept. Just ask.
+</div>
+
+<div class="lesson-nav">
+  <a href="0001-the-big-picture.html">&larr; Lesson 1: The Big Picture</a>
+  <a href="0003-patternfly-ui-components.html">Next: PatternFly UI Components &rarr;</a>
+</div>
+
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

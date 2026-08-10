@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lesson 14: Dashboard Navigation & Setup</title>
+  <link rel="stylesheet" href="../assets/style.css">
+  <style>
+    .setup-card {
+      border: 2px solid var(--border);
+      border-radius: 8px;
+      padding: 1.2rem;
+      margin: 1.5rem 0;
+      background: white;
+    }
+    .setup-card h3 { margin-top: 0; color: var(--accent); }
+    .setup-card .difficulty {
+      display: inline-block;
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 0.15em 0.5em;
+      border-radius: 4px;
+      margin-left: 0.5rem;
+    }
+    .easy { background: #e6f4ea; color: var(--success); }
+    .medium { background: #fff8e1; color: var(--warn); }
+    .hard { background: #fde7e7; color: var(--danger); }
+  </style>
+</head>
+<body>
+
+<h1>Lesson 14: Dashboard Navigation & Setup</h1>
+<p><strong>Goal:</strong> A practical guide to getting every feature area visible in your local dashboard — feature flags, CRDs, operators, and cluster setup for each area.</p>
+
+<hr>
+
+<h2>The one-sentence version</h2>
+<p><strong>Some features "just work" locally, some need a feature flag toggled, and some need operators installed on the cluster — this lesson tells you which is which.</strong></p>
+
+<h2>1. The Feature Flag System</h2>
+
+<p>The dashboard has a dev-mode feature flag system. To access it:</p>
+
+<pre><code># Open the flag launcher (shows all toggles)
+http://localhost:4010?devFeatureFlags
+
+# Or enable specific flags directly
+http://localhost:4010?devFeatureFlags=agentOps=true
+http://localhost:4010?devFeatureFlags=mcpRegistry=true,agentOps=true</code></pre>
+
+<p>This shows a <strong>blue banner</strong> at the top of the page with toggles for every feature flag. Changes are saved to session storage (<code>odh-feature-flags</code>) and persist until you clear them. They only affect your browser session (not the cluster).</p>
+
+<div class="callout callout-info">
+  <strong>Feature flags vs. dashboard config</strong>
+  <ul style="margin: 0.5rem 0 0 0; padding-left: 1.2rem;">
+    <li><strong>URL flags (<code>?devFeatureFlags</code>)</strong> — local, temporary, for development only</li>
+    <li><strong>OdhDashboardConfig</strong> — cluster-wide, persistent, affects all users</li>
+  </ul>
+  In production, feature availability is controlled by the <code>OdhDashboardConfig</code> CR.
+</div>
+
+<h3>How the dashboard config works:</h3>
+<pre><code># View the dashboard's configuration
+oc get odhdashboardconfig odh-dashboard-config -n redhat-ods-applications -o yaml
+
+# Key section (simplified):
+spec:
+  dashboardConfig:
+    disablePipelines: false            # Pipelines visible (disable* = inverted!)
+    disableModelServing: false         # Model Serving visible
+    disableHardwareProfiles: false     # Hardware Profiles visible
+    agentOps: true                     # Agent Ops visible (newer flags aren't inverted)
+    mcpRegistry: false                 # MCP Registry hidden
+    # ... many more flags</code></pre>
+
+<div class="callout callout-warn">
+  <strong>Watch the naming!</strong>
+  Older flags use <code>disable*</code> (inverted: <code>true</code> = hidden). Newer flags like <code>agentOps</code>, <code>mcpRegistry</code> are direct (<code>true</code> = visible). Always check which style the flag uses.
+</div>
+
+<p>To enable a feature on the cluster:</p>
+<pre><code>oc edit odhdashboardconfig odh-dashboard-config -n redhat-ods-applications
+# Change disableXXX: true → false
+# Save and exit — dashboard reloads config automatically</code></pre>
+
+<h2>2. The three levels of feature activation</h2>
+
+<table>
+  <thead><tr><th>Level</th><th>What's needed</th><th>Examples</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><strong>Level 1: Just works</strong></td>
+      <td>No extra setup — always visible</td>
+      <td>Projects, Home, Cluster Settings</td>
+    </tr>
+    <tr>
+      <td><strong>Level 2: Feature flag</strong></td>
+      <td>Toggle in dashboard config or URL flag</td>
+      <td>Agent Ops, MCP Registry, some experimental features</td>
+    </tr>
+    <tr>
+      <td><strong>Level 3: Operator/CRD</strong></td>
+      <td>An operator must be installed on the cluster</td>
+      <td>MLflow (needs MLflow Operator), Pipelines (needs DSPA)</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>3. Setup guide per area</h2>
+
+<!-- ─────────── Area: Hardware Profiles ─────────── -->
+<div class="setup-card">
+  <h3>Hardware Profiles <span class="difficulty easy">Easy</span></h3>
+  <p><strong>Difficulty:</strong> Just needs admin access.</p>
+  <ol>
+    <li>Log in as a user with admin/cluster-admin role</li>
+    <li>Navigate to <strong>Settings → Hardware profiles</strong> in the left nav</li>
+    <li>If the nav item is missing: <code>oc edit odhdashboardconfig</code> → set <code>disableHardwareProfiles: false</code></li>
+  </ol>
+  <p><strong>To create test data:</strong></p>
+  <pre><code># Apply a sample hardware profile
+oc apply -f - &lt;&lt;EOF
+apiVersion: dashboard.opendatahub.io/v1alpha1
+kind: HardwareProfile
+metadata:
+  name: small-cpu
+  namespace: redhat-ods-applications
+spec:
+  displayName: "Small CPU"
+  description: "2 CPUs, 8Gi RAM — for light workloads"
+  enabled: true
+  identifiers:
+    - identifier: cpu
+      displayName: CPU
+      defaultCount: 2
+      maxCount: 4
+      minCount: 1
+    - identifier: memory
+      displayName: Memory
+      defaultCount: 8Gi
+      maxCount: 16Gi
+      minCount: 4Gi
+EOF</code></pre>
+</div>
+
+<!-- ─────────── Area: Agent Ops ─────────── -->
+<div class="setup-card">
+  <h3>Agent Ops / Agent Runtimes <span class="difficulty medium">Medium</span></h3>
+  <p><strong>Difficulty:</strong> Needs feature flag + agent-ops package running.</p>
+  <ol>
+    <li>Enable the feature flag:
+      <pre><code># Via URL
+http://localhost:4010?devFeatureFlags=agentOps=true
+
+# OR via cluster config
+oc edit odhdashboardconfig
+# Set: agentOps: true</code></pre>
+    </li>
+    <li>Start the agent-ops package (if developing in it):
+      <pre><code>cd packages/agent-ops
+npm run start:dev</code></pre>
+    </li>
+    <li>The BFF needs to be running too (Go service):
+      <pre><code>cd packages/agent-ops/bff
+go run ./cmd/main.go</code></pre>
+    </li>
+    <li>Navigate to the Agent Runtimes section in the dashboard</li>
+  </ol>
+  <p><strong>Without the BFF running</strong>, the UI will show but API calls will fail.</p>
+</div>
+
+<!-- ─────────── Area: MCP Registry ─────────── -->
+<div class="setup-card">
+  <h3>MCP Registry <span class="difficulty medium">Medium</span></h3>
+  <p><strong>Difficulty:</strong> Separate flag from Agent Ops; lives in the mlflow package.</p>
+  <ol>
+    <li>Enable the feature flag:
+      <pre><code>http://localhost:4010?devFeatureFlags=mcpRegistry=true</code></pre>
+    </li>
+    <li>MCP Registry is part of the <code>packages/mlflow/</code> module (BFF handler)</li>
+    <li>Navigate to the MCP servers section in the dashboard</li>
+  </ol>
+</div>
+
+<!-- ─────────── Area: RBAC ─────────── -->
+<div class="setup-card">
+  <h3>RBAC <span class="difficulty easy">Easy</span></h3>
+  <p><strong>Difficulty:</strong> Always active — you just need to test with different user roles.</p>
+  <ol>
+    <li><strong>Admin view:</strong> Log in as a cluster-admin user → see all admin pages</li>
+    <li><strong>User view:</strong> Log in as a regular user → see limited pages
+      <pre><code># Check your current role
+oc auth can-i --list
+
+# Or check if you're admin
+oc auth can-i get odhdashboardconfigs -n redhat-ods-applications</code></pre>
+    </li>
+    <li>To test both roles, you need accounts with different permissions on your cluster</li>
+  </ol>
+  <p><strong>The dashboard determines admin status by:</strong></p>
+  <ul>
+    <li>Checking if the user can perform specific actions (SAR check)</li>
+    <li>Checking group membership (configurable in dashboard config)</li>
+  </ul>
+</div>
+
+<!-- ─────────── Area: MLflow ─────────── -->
+<div class="setup-card">
+  <h3>MLflow <span class="difficulty hard">Hard</span></h3>
+  <p><strong>Difficulty:</strong> Needs an operator installed on the cluster.</p>
+  <ol>
+    <li>Check if the MLflow CRD exists:
+      <pre><code>oc get crd | grep mlflow
+# If nothing shows, the operator isn't installed</code></pre>
+    </li>
+    <li>If not installed, options:
+      <ul>
+        <li>Ask your team for a cluster that has it</li>
+        <li>Install the MLflow operator yourself (OperatorHub)</li>
+        <li>Work with mock data in tests (Cypress mock tests don't need the operator)</li>
+      </ul>
+    </li>
+    <li>Once the CRD exists, the dashboard auto-discovers it and shows MLflow features</li>
+  </ol>
+  <p><strong>Without the operator:</strong> The dashboard silently hides MLflow features. No error, they just don't appear.</p>
+</div>
+
+<!-- ─────────── Area: Pipelines ─────────── -->
+<div class="setup-card">
+  <h3>Pipelines <span class="difficulty medium">Medium</span></h3>
+  <p><strong>Difficulty:</strong> Needs DSPA installed in the project namespace.</p>
+  <ol>
+    <li>Check if Data Science Pipelines is available:
+      <pre><code>oc get crd datasciencepipelinesapplications.datasciencepipelinesapplications.opendatahub.io</code></pre>
+    </li>
+    <li>If the CRD exists, create a DSPA in your project:
+      <pre><code># The dashboard can do this for you via the UI
+# OR manually:
+oc apply -f - &lt;&lt;EOF
+apiVersion: datasciencepipelinesapplications.opendatahub.io/v1alpha1
+kind: DataSciencePipelinesApplication
+metadata:
+  name: dspa
+  namespace: your-project
+spec:
+  apiServer:
+    deploy: true
+  persistenceAgent:
+    deploy: true
+  database:
+    mariaDB:
+      deploy: true
+  objectStorage:
+    minio:
+      deploy: true
+EOF</code></pre>
+    </li>
+    <li>Wait for DSPA pods to become ready:
+      <pre><code>oc get pods -n your-project | grep ds-pipeline</code></pre>
+    </li>
+    <li>Navigate to your project → Pipelines tab</li>
+  </ol>
+  <p><strong>Different states you'll see:</strong></p>
+  <ul>
+    <li>No DSPA CRD → Pipelines section hidden entirely</li>
+    <li>CRD exists, no DSPA in project → "Configure pipeline server" prompt</li>
+    <li>DSPA exists, no pipelines → "Import a pipeline" empty state</li>
+    <li>DSPA + pipelines → Full pipeline list</li>
+  </ul>
+</div>
+
+<!-- ─────────── Area: Test Connections ─────────── -->
+<div class="setup-card">
+  <h3>Test Connections <span class="difficulty easy">Easy</span></h3>
+  <p><strong>Difficulty:</strong> Just needs a project with connection types configured.</p>
+  <ol>
+    <li>Navigate to a project in the dashboard</li>
+    <li>Go to <strong>Connections</strong> or <strong>Add data connection</strong></li>
+    <li>Fill in connection details (S3 endpoint, credentials)</li>
+    <li>Look for the "Test connection" button</li>
+  </ol>
+  <p><strong>To actually test successfully:</strong> You need a real endpoint (MinIO, AWS S3, etc.). Without one, you can still see the UI — the test will just fail with a connection error.</p>
+</div>
+
+<h2>4. Dashboard navigation map</h2>
+
+<p>Here's what the left nav looks like with all features enabled:</p>
+
+<pre><code>┌─────────────────────────────┐
+│  OpenShift AI                │
+├─────────────────────────────┤
+│  Home                        │  ← Always visible
+│  Data Science Projects       │  ← Always visible
+│  Data Science Pipelines      │  ← Needs DSPA
+│  Experiments                 │  ← Needs DSPA
+│  Model Serving               │  ← Config flag
+│  Model Registry              │  ← Separate package
+│  Agent Runtimes              │  ← Feature flag
+├─────────────────────────────┤
+│  SETTINGS (admin only)       │
+│  ├─ Cluster settings         │
+│  ├─ Serving runtimes         │
+│  ├─ Hardware profiles        │
+│  ├─ Accelerator profiles     │
+│  ├─ Connection types         │
+│  └─ User management          │
+└─────────────────────────────┘</code></pre>
+
+<div class="callout callout-warn">
+  <strong>Not seeing something?</strong>
+  Check in this order:
+  <ol style="margin: 0.5rem 0 0 0; padding-left: 1.2rem;">
+    <li>Are you logged in as admin? (Settings section is admin-only)</li>
+    <li>Is the feature flag enabled? (<code>?devFeatureFlags</code>)</li>
+    <li>Is the CRD installed? (<code>oc get crd | grep SOMETHING</code>)</li>
+    <li>Is the operator running? (<code>oc get pods</code>)</li>
+  </ol>
+</div>
+
+<h2>5. Common scenarios and what to do</h2>
+
+<table>
+  <thead><tr><th>What you want to do</th><th>What you need</th></tr></thead>
+  <tbody>
+    <tr><td>Work on Agent Ops UI</td><td>Feature flag + gen-ai package running</td></tr>
+    <tr><td>Test RBAC as non-admin</td><td>A second user account without cluster-admin</td></tr>
+    <tr><td>See MLflow features</td><td>Cluster with MLflow operator installed</td></tr>
+    <tr><td>Develop pipeline UI</td><td>DSPA installed in a test project</td></tr>
+    <tr><td>Work on Hardware Profiles</td><td>Admin login + the page is enabled</td></tr>
+    <tr><td>Test connection types</td><td>A project + a real S3/database endpoint</td></tr>
+    <tr><td>Work on model registry</td><td>model-registry package running + feature enabled</td></tr>
+  </tbody>
+</table>
+
+<h2>6. Developing without a cluster (mock-only)</h2>
+
+<p>Sometimes you don't have cluster access. You can still work:</p>
+
+<ul>
+  <li><strong>Cypress mock tests</strong> — test entire flows with fake data, no cluster needed</li>
+  <li><strong>Jest unit tests</strong> — test logic and components in isolation</li>
+  <li><strong>Storybook</strong> (if available) — preview components without the full app</li>
+  <li><strong>Frontend-only with errors</strong> — the UI renders, API calls fail, but you can still develop UI components</li>
+</ul>
+
+<div class="callout callout-success">
+  <strong>Pro tip: Start with mock tests</strong>
+  If you're adding a new table or form and don't have cluster access yet, write the Cypress mock test first. It forces you to think about the UI flow and provides instant feedback — and your PR already has test coverage when you're done.
+</div>
+
+<hr>
+
+<h2>Check your understanding</h2>
+
+<div class="quiz" data-answer="b" data-hint="?devFeatureFlags enables a blue toggle banner at the top — session-only.">
+  <p class="quiz-q">1. How do you enable a feature flag for local development?</p>
+  <label><input type="radio" name="q1" value="a"> Edit the webpack.config.ts and rebuild the entire project</label>
+  <label><input type="radio" name="q1" value="b"> Add ?devFeatureFlags to the URL and toggle the flag in the banner</label>
+  <label><input type="radio" name="q1" value="c"> Install a browser extension that modifies HTTP headers</label>
+  <label><input type="radio" name="q1" value="d"> Create a .feature-flags.json file in the frontend directory</label>
+  <div class="feedback"></div>
+</div>
+
+<div class="quiz" data-answer="c" data-hint="MLflow needs its operator CRD on the cluster — the dashboard hides it otherwise.">
+  <p class="quiz-q">2. Why might MLflow features not appear even with all flags enabled?</p>
+  <label><input type="radio" name="q2" value="a"> MLflow is only available in production, never in development</label>
+  <label><input type="radio" name="q2" value="b"> You need to import MLflow as an npm package in package.json</label>
+  <label><input type="radio" name="q2" value="c"> The MLflow operator/CRD must be installed on the cluster</label>
+  <label><input type="radio" name="q2" value="d"> MLflow was removed from the project in the latest release</label>
+  <div class="feedback"></div>
+</div>
+
+<div class="quiz" data-answer="a" data-hint="DSPA (Data Science Pipelines Application) must exist in the project namespace.">
+  <p class="quiz-q">3. What does a project need before the Pipelines tab shows content?</p>
+  <label><input type="radio" name="q3" value="a"> A DataSciencePipelinesApplication resource installed in the namespace</label>
+  <label><input type="radio" name="q3" value="b"> A special label on the Namespace: pipelines-enabled=true</label>
+  <label><input type="radio" name="q3" value="c"> The user must have a Pro license activated on their account</label>
+  <label><input type="radio" name="q3" value="d"> A minimum of 3 workbenches must already be running first</label>
+  <div class="feedback"></div>
+</div>
+
+<hr>
+
+<h2>Key takeaways</h2>
+<ul>
+  <li><strong><code>?devFeatureFlags</code></strong> — your main tool for toggling features locally</li>
+  <li><strong>Three levels</strong>: just works → needs flag → needs operator</li>
+  <li><strong>OdhDashboardConfig</strong> controls feature visibility cluster-wide</li>
+  <li><strong>CRD discovery</strong> — the dashboard auto-hides features whose CRDs aren't installed</li>
+  <li><strong>Admin nav is hidden for regular users</strong> — test with both roles</li>
+  <li><strong>You can develop without a cluster</strong> using mock tests and the frontend-only mode</li>
+</ul>
+
+<h2>You've completed the curriculum!</h2>
+
+<p>You now have:</p>
+<ul>
+  <li>The big picture of the repo and technologies (Lessons 1–4)</li>
+  <li>Practical skills: running, testing, and contributing (Lessons 5–10)</li>
+  <li>Architecture understanding: Module Federation (Lesson 11)</li>
+  <li>Domain knowledge: what the dashboard manages (Lesson 12)</li>
+  <li>Area expertise: deep-dives into your focus areas (Lesson 13)</li>
+  <li>Setup knowledge: how to get everything running (this lesson)</li>
+</ul>
+
+<p>From here, the best next step is to <strong>pick up a real issue</strong> in one of your focus areas and apply everything you've learned. Start small — a bug fix or a UI tweak — and work up to features.</p>
+
+<div class="footer-reminder">
+  This is a living document. As you discover things that should be here (new setup steps, gotchas, tips), tell your teacher (the agent) and we'll update it together.
+</div>
+
+<div class="lesson-nav">
+  <a href="0013-area-deep-dives.html">&larr; Lesson 13: Area Deep-Dives</a>
+  <a href="0001-the-big-picture.html">Back to the beginning &rarr;</a>
+</div>
+
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

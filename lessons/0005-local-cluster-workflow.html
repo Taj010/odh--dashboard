@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lesson 5: Local Cluster Workflow</title>
+  <link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+
+<h1>Lesson 5: Local Cluster Workflow</h1>
+<p><strong>Goal:</strong> Understand what <code>oc login</code> actually does, how the dashboard talks to Kubernetes, and how to troubleshoot the most common "blank page" problems.</p>
+
+<hr>
+
+<h2>The one-sentence version</h2>
+<p><strong>Your dashboard is a window into a Kubernetes cluster — <code>oc login</code> gives you a token that lets the dashboard read/write Kubernetes resources on your behalf.</strong></p>
+
+<h2>1. What is a cluster?</h2>
+
+<p>Think of it like a remote server (or group of servers) that runs containers. Kubernetes manages those containers. OpenShift is Red Hat's distribution of Kubernetes with extras (like a web console, built-in auth, Routes for exposing apps).</p>
+
+<div class="diagram">Your laptop                          The cluster
+─────────                          ───────────
+browser → localhost:4010             OpenShift API (6443)
+              │                           │
+      dashboard backend ──────────→ reads/writes K8s resources
+              │                     (Projects, Pods, ConfigMaps,
+        needs your token            InferenceServices, Pipelines…)
+        to impersonate you</div>
+
+<p>The dashboard doesn't have its own database. <strong>Kubernetes IS the database.</strong> Every piece of data you see in the UI is a Kubernetes resource — a YAML object stored in the cluster.</p>
+
+<h2>2. The <code>oc login</code> flow</h2>
+
+<table>
+  <thead><tr><th>Step</th><th>What happens</th></tr></thead>
+  <tbody>
+    <tr><td>1. Get a token</td><td>OpenShift console → user menu → <strong>Copy login command</strong>. You get a command like <code>oc login --token=sha256~XXXXX --server=https://api.cluster.example.com:6443</code></td></tr>
+    <tr><td>2. Run it</td><td>Your terminal now has a <strong>kubeconfig</strong> context with that token stored at <code>~/.kube/config</code></td></tr>
+    <tr><td>3. Backend reads it</td><td>When the dashboard backend starts, it reads your kubeconfig to get the token and server URL</td></tr>
+    <tr><td>4. API calls use it</td><td>Every request from the UI → backend → cluster carries your token. The cluster checks <em>your</em> RBAC permissions.</td></tr>
+  </tbody>
+</table>
+
+<div class="callout callout-warn">
+  <strong>Tokens expire!</strong>
+  Shared clusters typically expire tokens after 12–24 hours. When pages start returning 401 errors or showing blank, your first instinct should be: <strong>re-login with <code>oc login</code></strong> and restart the backend.
+</div>
+
+<h2>3. The <code>.env.local</code> file</h2>
+
+<p>This file lives at the repo root and is <strong>never committed</strong> (it's in <code>.gitignore</code>). It configures your local dev environment.</p>
+
+<pre><code># .env.local — your personal config
+OC_URL=https://api.mycluster.example.com:6443
+OC_PROJECT=redhat-ods-applications
+OC_USER=myuser
+OC_PASS=mytoken</code></pre>
+
+<table>
+  <thead><tr><th>Variable</th><th>What it does</th></tr></thead>
+  <tbody>
+    <tr><td><code>OC_PROJECT</code></td><td>The namespace the dashboard watches. Usually <code>opendatahub</code> (ODH) or <code>redhat-ods-applications</code> (RHOAI).</td></tr>
+    <tr><td><code>OC_URL</code></td><td>Cluster API URL — so <code>make login</code> can auto-connect</td></tr>
+    <tr><td><code>OC_USER</code> / <code>OC_PASS</code></td><td>Credentials for <code>make login</code> (optional if you paste the token command manually)</td></tr>
+  </tbody>
+</table>
+
+<h2>4. Useful <code>oc</code> commands for dashboard work</h2>
+
+<p>You don't need to master <code>oc</code> — but these are the commands you'll use weekly:</p>
+
+<table>
+  <thead><tr><th>Command</th><th>What it does</th></tr></thead>
+  <tbody>
+    <tr><td><code>oc whoami</code></td><td>Shows your current username — quick check if you're logged in</td></tr>
+    <tr><td><code>oc project</code></td><td>Shows current namespace</td></tr>
+    <tr><td><code>oc project redhat-ods-applications</code></td><td>Switch to a different namespace</td></tr>
+    <tr><td><code>oc get pods</code></td><td>Lists running containers in current namespace</td></tr>
+    <tr><td><code>oc get datascienceclusters</code></td><td>Check if RHOAI is installed</td></tr>
+    <tr><td><code>oc get odhdashboardconfig -o yaml</code></td><td>See the dashboard's own configuration CR</td></tr>
+    <tr><td><code>oc logs deploy/odh-dashboard -c odh-dashboard</code></td><td>Check dashboard backend logs on cluster</td></tr>
+    <tr><td><code>oc get routes -n redhat-ods-applications</code></td><td>Find the URL where the dashboard is deployed on cluster</td></tr>
+  </tbody>
+</table>
+
+<h2>5. Troubleshooting the blank page</h2>
+
+<p>When you start the dev server and see nothing (or errors), check in this order:</p>
+
+<ol>
+  <li><strong><code>oc whoami</code></strong> — if it fails, token expired → re-login</li>
+  <li><strong>Is the backend running?</strong> — check terminal for errors</li>
+  <li><strong>Is <code>OC_PROJECT</code> correct?</strong> — wrong namespace = no dashboard config found</li>
+  <li><strong>Browser console (F12)</strong> — look for 401/403/404 network errors</li>
+  <li><strong>Feature flags</strong> — some pages require flags to be enabled (covered in the navigation lesson)</li>
+</ol>
+
+<div class="callout callout-success">
+  <strong>Most common fix</strong>
+  90% of "it was working yesterday" problems: <code>oc login --token=... --server=...</code> → restart backend → refresh browser.
+</div>
+
+<h2>6. Multiple clusters</h2>
+
+<p>You might switch between clusters (e.g., a shared dev cluster and a staging cluster). <code>oc</code> stores multiple contexts in <code>~/.kube/config</code>.</p>
+
+<pre><code># See all contexts
+oc config get-contexts
+
+# Switch to a different cluster
+oc config use-context admin/api-staging-cluster:6443/admin
+
+# Or just login again — it switches for you
+oc login --token=... --server=https://api.staging.example.com:6443</code></pre>
+
+<div class="callout callout-info">
+  <strong>Pro tip</strong>
+  After switching clusters, restart the dashboard backend so it picks up the new kubeconfig context.
+</div>
+
+<hr>
+
+<h2>Check your understanding</h2>
+
+<div class="quiz" data-answer="c" data-hint="The dashboard reads K8s resources using your oc token — no separate database exists.">
+  <p class="quiz-q">1. Where does the dashboard store its data?</p>
+  <label><input type="radio" name="q1" value="a"> A PostgreSQL database running alongside the frontend</label>
+  <label><input type="radio" name="q1" value="b"> JSON files stored in the frontend/data directory</label>
+  <label><input type="radio" name="q1" value="c"> Kubernetes resources on the cluster (K8s IS the database)</label>
+  <label><input type="radio" name="q1" value="d"> A Redis cache that syncs with the backend every minute</label>
+  <div class="feedback"></div>
+</div>
+
+<div class="quiz" data-answer="a" data-hint="Token expiry is the most common cause of blank pages during development.">
+  <p class="quiz-q">2. Pages that worked yesterday now show 401 errors. What's most likely?</p>
+  <label><input type="radio" name="q2" value="a"> Your oc token expired — re-login and restart backend</label>
+  <label><input type="radio" name="q2" value="b"> PatternFly was upgraded overnight and broke components</label>
+  <label><input type="radio" name="q2" value="c"> The cluster was permanently deleted by your team lead</label>
+  <label><input type="radio" name="q2" value="d"> Node.js needs to be reinstalled from scratch to fix it</label>
+  <div class="feedback"></div>
+</div>
+
+<div class="quiz" data-answer="b" data-hint=".env.local is gitignored and holds personal cluster config.">
+  <p class="quiz-q">3. Why is <code>.env.local</code> not committed to git?</p>
+  <label><input type="radio" name="q3" value="a"> It contains PatternFly license keys that cost money</label>
+  <label><input type="radio" name="q3" value="b"> It has personal cluster credentials and URLs per developer</label>
+  <label><input type="radio" name="q3" value="c"> Git cannot handle files with the .local extension at all</label>
+  <label><input type="radio" name="q3" value="d"> It is regenerated automatically every time npm install runs</label>
+  <div class="feedback"></div>
+</div>
+
+<hr>
+
+<h2>Key takeaways</h2>
+<ul>
+  <li><strong>Kubernetes IS the database</strong> — the dashboard reads/writes K8s resources, nothing else</li>
+  <li><strong><code>oc login</code></strong> gives your backend a token to act on your behalf</li>
+  <li><strong>Tokens expire</strong> — re-login is your #1 troubleshooting step</li>
+  <li><strong><code>.env.local</code></strong> tells the dev server which cluster and namespace to target</li>
+  <li><strong><code>oc whoami</code></strong> is the quick sanity check</li>
+</ul>
+
+<h2>What's next</h2>
+<p>Now that you can connect to a cluster and get the app running, let's look <em>inside</em> the frontend code: <strong>how the source folders are organized</strong>, where pages live, and where to find things when you get a task.</p>
+
+<div class="lesson-nav">
+  <a href="0004-running-the-dev-server.html">&larr; Lesson 4: Running the Dev Server</a>
+  <a href="0006-frontend-folder-map.html">Next: Frontend Folder Map &rarr;</a>
+</div>
+
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

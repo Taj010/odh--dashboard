@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lesson 4: Running the Dev Server</title>
+  <link rel="stylesheet" href="../assets/style.css">
+  <style>
+    .step {
+      display: grid;
+      grid-template-columns: 2.5rem 1fr;
+      gap: 0.75rem;
+      align-items: start;
+      margin: 1.2rem 0;
+      padding: 1rem;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: white;
+    }
+    .step .num {
+      width: 2rem;
+      height: 2rem;
+      border-radius: 50%;
+      background: var(--accent);
+      color: white;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.95rem;
+    }
+    .step h3 { margin: 0 0 0.4rem; font-size: 1.05rem; }
+    .step p:last-child { margin-bottom: 0; }
+    .path-cards {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      margin: 1rem 0;
+    }
+    @media (max-width: 640px) {
+      .path-cards { grid-template-columns: 1fr; }
+    }
+    .path-card {
+      border: 2px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+      background: white;
+    }
+    .path-card.recommended { border-color: var(--accent); }
+    .path-card h3 { margin-top: 0; font-size: 1rem; }
+    .checklist label {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.5rem;
+      padding: 0.45rem 0;
+      cursor: pointer;
+    }
+    .checklist input { margin-top: 0.35rem; }
+    .port-table td:first-child { font-family: var(--font-mono); white-space: nowrap; }
+  </style>
+</head>
+<body>
+
+<h1>Lesson 4: Running the Dev Server</h1>
+<p><strong>Goal:</strong> Get the ODH Dashboard running on your machine, open it in the browser, and understand <em>why</em> the setup looks the way it does — so you can start making real UI changes.</p>
+
+<hr>
+
+<h2>The one-sentence version</h2>
+
+<p><strong>Your laptop runs the React UI; an OpenShift cluster (that you log into with <code>oc</code>) supplies the real data.</strong></p>
+
+<p>This is not a self-contained toy app. The dashboard is a control panel for Kubernetes resources. Locally, you compile and hot-reload the UI. The API calls still need a real cluster (or a mock) to answer.</p>
+
+<div class="callout callout-info">
+  <strong>Primary source</strong>
+  Read <a href="../CONTRIBUTING.md">CONTRIBUTING.md — Running locally</a> and <a href="../docs/dev-setup.md">docs/dev-setup.md</a>. This lesson compresses those docs into a first-time path. When something fails, those pages are the source of truth.
+</div>
+
+<h2>1. What you need installed</h2>
+
+<table>
+  <thead>
+    <tr><th>Tool</th><th>Why</th><th>Check</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Node.js</strong> ≥ 22</td>
+      <td>Runs the frontend build tooling</td>
+      <td><code>node -v</code></td>
+    </tr>
+    <tr>
+      <td><strong>npm</strong> ≥ 10</td>
+      <td>Installs packages; workspaces live at the repo root</td>
+      <td><code>npm -v</code></td>
+    </tr>
+    <tr>
+      <td><strong>oc</strong> (OpenShift CLI)</td>
+      <td>Logs you into a cluster so the backend can talk to Kubernetes</td>
+      <td><code>oc version</code></td>
+    </tr>
+  </tbody>
+</table>
+
+<p>Go is listed in the README for packages with BFFs — <strong>you can skip Go for this lesson</strong>. Mission scope is frontend-first.</p>
+
+<div class="callout callout-warn">
+  <strong>No cluster yet?</strong>
+  You can still install deps and start the UI, but pages that fetch real data will fail or look empty until you complete <code>oc login</code>. Ask your team for shared-cluster access (see CONTRIBUTING's Shared Clusters link). This lesson still teaches the mental model.
+</div>
+
+<h2>2. Two ways to run — pick one</h2>
+
+<div class="path-cards">
+  <div class="path-card recommended">
+    <h3>Path A — Frontend only <span class="tag tag-new">usual</span></h3>
+    <p>UI on your laptop. Talks to the <strong>cluster's</strong> backend. Best when you're only changing React/TS/PatternFly code.</p>
+    <pre><code>cd frontend
+oc login ...
+npm run start:dev:ext</code></pre>
+  </div>
+  <div class="path-card">
+    <h3>Path B — Frontend + local backend</h3>
+    <p>Both processes on your laptop. Use when changing backend code, or when Path A isn't enough.</p>
+    <pre><code># from repo root
+npm run dev
+
+# or two terminals:
+cd frontend && npm run start:dev
+cd backend  && npm run start:dev</code></pre>
+  </div>
+</div>
+
+<p>Either way, open: <strong><a href="http://localhost:4010">http://localhost:4010</a></strong></p>
+
+<table class="port-table">
+  <thead>
+    <tr><th>URL</th><th>What it is</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>http://localhost:4010</td><td>Frontend (the dashboard you look at)</td></tr>
+    <tr><td>http://localhost:4000</td><td>Local backend API (Path B only)</td></tr>
+  </tbody>
+</table>
+
+<div class="diagram">Your browser
+    │
+    ▼
+localhost:4010  ← React UI (webpack/rspack, hot reload)
+    │
+    ▼
+Backend API  ←── Path A: cluster   /   Path B: localhost:4000
+    │
+    ▼
+OpenShift / Kubernetes API  (needs oc login)</div>
+
+<h2>3. Do this once (setup)</h2>
+
+<div class="step">
+  <div class="num">1</div>
+  <div>
+    <h3>Install dependencies at the <em>repo root</em></h3>
+    <pre><code>npm install</code></pre>
+    <p>Because this is a <a href="../reference/glossary.html">monorepo</a>, one install at the root wires up <code>frontend/</code>, <code>backend/</code>, and <code>packages/</code>. Don't only install inside <code>frontend/</code> unless a doc tells you to.</p>
+  </div>
+</div>
+
+<div class="step">
+  <div class="num">2</div>
+  <div>
+    <h3>Create <code>.env.local</code></h3>
+    <pre><code>cp .env.local.example .env.local</code></pre>
+    <p>This file is <strong>not committed</strong>. It holds cluster/project settings. At minimum, set <code>OC_PROJECT</code> (often <code>opendatahub</code> or <code>redhat-ods-applications</code> — ask your team which). Optionally fill <code>OC_URL</code> / credentials so <code>make login</code> works.</p>
+  </div>
+</div>
+
+<div class="step">
+  <div class="num">3</div>
+  <div>
+    <h3>Log in to a cluster</h3>
+    <p>From the OpenShift console: user menu → <strong>Copy login command</strong>, then paste into your terminal. Or:</p>
+    <pre><code>make login
+# or
+npm run make:login</code></pre>
+    <p>Confirm:</p>
+    <pre><code>oc whoami
+oc project</code></pre>
+    <p>Tokens expire — you'll often re-login daily and restart the backend.</p>
+  </div>
+</div>
+
+<h2>4. Start the app (today)</h2>
+
+<div class="step">
+  <div class="num">4</div>
+  <div>
+    <h3>Start the frontend (recommended Path A)</h3>
+    <pre><code>cd frontend
+npm run start:dev:ext</code></pre>
+    <p><code>start:dev:ext</code> sets <code>EXT_CLUSTER=true</code> so the UI talks to the external cluster backend. Wait until the terminal says the server is ready, then open <code>http://localhost:4010</code>.</p>
+  </div>
+</div>
+
+<div class="step">
+  <div class="num">5</div>
+  <div>
+    <h3>Prove hot reload works</h3>
+    <p>Pick a visible string in the UI (a page title works). Find it in the codebase (Cmd/Ctrl+Shift+F), change the text slightly, save. The browser should update without a full refresh. That loop — <em>edit → save → see</em> — is how you'll spend most days.</p>
+  </div>
+</div>
+
+<div class="callout callout-success">
+  <strong>Win for this lesson</strong>
+  Dashboard open at localhost:4010 + one tiny text change reflected in the browser. That's enough. Don't chase a perfect cluster setup in this session if access is blocked — get as far as you can and ask.
+</div>
+
+<h2>5. Mental model: why it's weird compared to a normal React app</h2>
+
+<ul>
+  <li><strong>Commands from the right folder</strong> — root for monorepo-wide tasks (<code>npm install</code>, <code>npm run dev</code>); <code>frontend/</code> for UI-only scripts.</li>
+  <li><strong>Auth is cluster auth</strong> — your <code>oc</code> session is how the backend impersonates/calls Kubernetes. No <code>oc</code> login → empty/errors.</li>
+  <li><strong>Hot reload is the frontend only</strong> — change a <code>.tsx</code> file → instant. Change backend → restart that process.</li>
+  <li><strong>Feature flags</strong> — append <code>?devFeatureFlags</code> to the URL for a blue banner that toggles flags for your session only (<a href="../docs/dev-setup.md">dev-setup.md</a>).</li>
+</ul>
+
+<h2>6. Practice checklist</h2>
+<p>Check off what you've done. (This is for you — nothing is submitted.)</p>
+
+<div class="checklist">
+  <label><input type="checkbox"> <code>node -v</code> shows 22+</label>
+  <label><input type="checkbox"> Ran <code>npm install</code> at repo root</label>
+  <label><input type="checkbox"> Have a <code>.env.local</code> (copied from example)</label>
+  <label><input type="checkbox"> <code>oc whoami</code> prints a username (or noted that I'm blocked on cluster access)</label>
+  <label><input type="checkbox"> Opened <code>http://localhost:4010</code></label>
+  <label><input type="checkbox"> Changed a visible string and saw hot reload</label>
+</div>
+
+<hr>
+
+<h2>Check your understanding</h2>
+
+<div class="quiz" data-answer="b" data-hint="The React UI is served on 4010; 4000 is the local backend API.">
+  <p class="quiz-q">1. Which URL do you open in the browser for the dashboard UI?</p>
+  <label><input type="radio" name="q1" value="a"> http://localhost:4000 — that is the frontend UI port</label>
+  <label><input type="radio" name="q1" value="b"> http://localhost:4010 — that is the frontend UI port</label>
+  <label><input type="radio" name="q1" value="c"> http://localhost:3000 — that is the frontend UI port</label>
+  <label><input type="radio" name="q1" value="d"> http://localhost:8080 — that is the frontend UI port</label>
+  <div class="feedback"></div>
+</div>
+
+<div class="quiz" data-answer="c" data-hint="Path A is frontend-only against the cluster; start:dev:ext is the usual command.">
+  <p class="quiz-q">2. You're only changing a PatternFly button. What's the usual start command?</p>
+  <label><input type="radio" name="q2" value="a"> From backend/, run npm run start — UI-only work needs that</label>
+  <label><input type="radio" name="q2" value="b"> From packages/, run npm run build — UI-only work needs that</label>
+  <label><input type="radio" name="q2" value="c"> From frontend/, run npm run start:dev:ext after oc login</label>
+  <label><input type="radio" name="q2" value="d"> From root/, run npm run test only — UI-only work needs that</label>
+  <div class="feedback"></div>
+</div>
+
+<div class="quiz" data-answer="a" data-hint="Monorepo workspaces share one install at the repository root.">
+  <p class="quiz-q">3. Where should you usually run <code>npm install</code> in this repo?</p>
+  <label><input type="radio" name="q3" value="a"> At the repository root so all workspaces get dependencies</label>
+  <label><input type="radio" name="q3" value="b"> Only inside frontend/ because the UI is all you need</label>
+  <label><input type="radio" name="q3" value="c"> Only inside backend/ because the API is all you need</label>
+  <label><input type="radio" name="q3" value="d"> Only inside packages/ because modules are all you need</label>
+  <div class="feedback"></div>
+</div>
+
+<div class="quiz" data-answer="d" data-hint="Without oc login, the backend cannot talk to the Kubernetes API as you.">
+  <p class="quiz-q">4. Why does local development need <code>oc login</code>?</p>
+  <label><input type="radio" name="q4" value="a"> It installs PatternFly packages into node_modules for you</label>
+  <label><input type="radio" name="q4" value="b"> It starts webpack so hot reload works in the browser tab</label>
+  <label><input type="radio" name="q4" value="c"> It formats TypeScript files before every save in the editor</label>
+  <label><input type="radio" name="q4" value="d"> It authenticates you so the app can call the cluster API</label>
+  <div class="feedback"></div>
+</div>
+
+<div class="quiz" data-answer="b" data-hint=".env.local holds personal/cluster settings and must stay out of git.">
+  <p class="quiz-q">5. What is <code>.env.local</code> for?</p>
+  <label><input type="radio" name="q5" value="a"> Production secrets committed to git for every teammate</label>
+  <label><input type="radio" name="q5" value="b"> Local-only config like OC_PROJECT; copy from the example</label>
+  <label><input type="radio" name="q5" value="c"> Cypress screenshots stored under frontend for visual diffs</label>
+  <label><input type="radio" name="q5" value="d"> PatternFly theme tokens shared across all Red Hat products</label>
+  <div class="feedback"></div>
+</div>
+
+<hr>
+
+<h2>Recommended reading</h2>
+<p>Primary: <a href="../CONTRIBUTING.md">CONTRIBUTING.md</a> (sections <em>Running locally</em> and <em>Give your dev env access</em>). Secondary: <a href="../docs/dev-setup.md">docs/dev-setup.md</a> for requirements and <code>?devFeatureFlags</code>.</p>
+
+<p>When you have cluster access, also ask your team which shared cluster to use — credentials and status live on the team's Shared Clusters page linked from CONTRIBUTING.</p>
+
+<h2>Key takeaways</h2>
+<ul>
+  <li><strong>4010 = UI</strong>, <strong>4000 = local backend</strong></li>
+  <li><strong>Path A</strong> (<code>frontend</code> + <code>start:dev:ext</code>) is the default for UI work</li>
+  <li><strong>Root <code>npm install</code></strong> — monorepo, not a single-package app</li>
+  <li><strong><code>oc login</code></strong> connects your laptop to real cluster data</li>
+  <li><strong>Hot reload</strong> = change TSX, save, watch the browser</li>
+</ul>
+
+<h2>What's next</h2>
+<p>Once the app is running, we'll dig into <strong>how a page is structured</strong> in this repo (routing, a real page folder, where data hooks live) — so your next edit isn't a random string, but a real UI change.</p>
+
+<div class="footer-reminder">
+  Questions? Stuck on install, login, or a blank page? Ask your teacher (the agent) — paste the error text and we can debug together. Also tell me whether you have cluster access yet.
+</div>
+
+<div class="lesson-nav">
+  <a href="0003-patternfly-ui-components.html">&larr; Lesson 3: PatternFly</a>
+  <a href="0005-local-cluster-workflow.html">Next: Local Cluster Workflow &rarr;</a>
+</div>
+
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

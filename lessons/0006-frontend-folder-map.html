@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lesson 6: Frontend Folder Map</title>
+  <link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+
+<h1>Lesson 6: Frontend Folder Map</h1>
+<p><strong>Goal:</strong> Know where to find things in the frontend source. When you get a task like "fix the model serving table," you should immediately know which folder to open.</p>
+
+<hr>
+
+<h2>The one-sentence version</h2>
+<p><strong>Pages are in <code>pages/</code>, reusable domain logic is in <code>concepts/</code>, API calls are in <code>api/</code>, and shared components live in <code>components/</code>.</strong></p>
+
+<h2>1. The big picture</h2>
+
+<div class="diagram">frontend/src/
+├── app/              ← App shell (routes, nav, providers, feature flags)
+├── pages/            ← One folder per top-level page/section
+├── concepts/         ← Reusable domain logic (hooks, types, components)
+├── api/              ← K8s API call functions
+├── components/       ← Shared generic UI components
+├── routes/           ← Route path definitions by feature area
+├── plugins/          ← Module Federation / extension system
+├── utilities/        ← Pure helper functions (no React)
+├── services/         ← Service layer
+├── redux/            ← Global state management
+├── images/           ← SVGs and static images
+└── __mocks__/        ← Shared test mock data</div>
+
+<h2>2. <code>pages/</code> — where features live</h2>
+
+<p>Each subfolder under <code>pages/</code> corresponds to a top-level section in the dashboard navigation. Examples:</p>
+
+<table>
+  <thead><tr><th>Folder</th><th>Dashboard section</th></tr></thead>
+  <tbody>
+    <tr><td><code>pages/projects/</code></td><td>Data Science Projects</td></tr>
+    <tr><td><code>pages/modelServing/</code></td><td>Model Serving</td></tr>
+    <tr><td><code>pages/pipelines/</code></td><td>Pipelines</td></tr>
+    <tr><td><code>pages/hardwareProfiles/</code></td><td>Hardware Profiles (admin)</td></tr>
+    <tr><td><code>pages/connectionTypes/</code></td><td>Connection Types (admin)</td></tr>
+    <tr><td><code>pages/notebookController/</code></td><td>Workbench controller</td></tr>
+    <tr><td><code>pages/home/</code></td><td>Home / landing page</td></tr>
+  </tbody>
+</table>
+
+<p>Inside a page folder you'll typically find:</p>
+
+<pre><code>pages/hardwareProfiles/
+├── HardwareProfiles.tsx          ← Main page component
+├── HardwareProfilesTable.tsx     ← Table component
+├── ManageHardwareProfile.tsx     ← Create/edit form page
+├── components/                   ← Sub-components specific to this page
+├── utils.ts                      ← Helper functions for this page
+└── __tests__/                    ← Unit tests for this page</code></pre>
+
+<div class="callout callout-info">
+  <strong>Rule of thumb</strong>
+  If a component is only used within one page section, it lives in that page's folder. If it's used across multiple pages, it goes in <code>concepts/</code> or <code>components/</code>.
+</div>
+
+<h2>3. <code>concepts/</code> — reusable domain logic</h2>
+
+<p>This is the heart of the codebase's reusable logic. Each subfolder represents a <em>domain concept</em> — a type of Kubernetes resource or business entity the dashboard manages.</p>
+
+<table>
+  <thead><tr><th>Folder</th><th>What it manages</th></tr></thead>
+  <tbody>
+    <tr><td><code>concepts/projects/</code></td><td>Data Science Projects (K8s Namespaces with labels)</td></tr>
+    <tr><td><code>concepts/pipelines/</code></td><td>Pipeline definitions, runs, experiments</td></tr>
+    <tr><td><code>concepts/modelServing/</code></td><td>InferenceServices, model servers</td></tr>
+    <tr><td><code>concepts/k8s/</code></td><td>Generic K8s resource utilities (Pods, ConfigMaps, etc.)</td></tr>
+    <tr><td><code>concepts/areas/</code></td><td>Feature flag system (which features are enabled)</td></tr>
+    <tr><td><code>concepts/connectionTypes/</code></td><td>Connection type definitions</td></tr>
+    <tr><td><code>concepts/hardwareProfiles/</code></td><td>Hardware profile resources</td></tr>
+    <tr><td><code>concepts/trustyai/</code></td><td>TrustyAI / model explainability</td></tr>
+  </tbody>
+</table>
+
+<p>A typical concept folder looks like:</p>
+
+<pre><code>concepts/pipelines/
+├── types.ts                      ← TypeScript types for this domain
+├── usePipelines.ts               ← React hooks for fetching data
+├── apiHooks.ts                   ← Hooks that call the API layer
+├── content/                      ← Sub-components (tables, forms)
+├── context/                      ← React Context providers
+└── utils.ts                      ← Domain-specific helpers</code></pre>
+
+<h2>4. <code>api/</code> — Kubernetes API calls</h2>
+
+<p>Functions that make actual HTTP requests to the backend (which forwards them to Kubernetes). Organized by resource type:</p>
+
+<pre><code>api/
+├── k8s/                          ← Direct K8s resource operations
+│   ├── projects.ts               ← CRUD for namespaces/projects
+│   ├── configMaps.ts             ← ConfigMap operations
+│   ├── secrets.ts                ← Secret operations
+│   └── ...
+├── pipelines/                    ← Pipeline-specific API calls
+├── modelServing/                 ← Model serving API calls
+└── ...</code></pre>
+
+<div class="callout callout-warn">
+  <strong>Don't call fetch() directly</strong>
+  This project has API utilities that handle auth headers, error parsing, and typing. Always use the existing patterns in <code>api/</code> — never write raw <code>fetch()</code> in a page component.
+</div>
+
+<h2>5. <code>components/</code> — shared UI building blocks</h2>
+
+<p>Generic components that aren't tied to any specific domain:</p>
+
+<table>
+  <thead><tr><th>Component</th><th>What it is</th></tr></thead>
+  <tbody>
+    <tr><td><code>components/table/</code></td><td>Table wrapper with pagination, sorting, filtering</td></tr>
+    <tr><td><code>components/DashboardModalFooter.tsx</code></td><td>Standard modal footer (submit/cancel buttons)</td></tr>
+    <tr><td><code>components/EmptyTableView.tsx</code></td><td>"No data" placeholder for tables</td></tr>
+    <tr><td><code>components/ResourceNameTooltip.tsx</code></td><td>Shows K8s name vs display name</td></tr>
+  </tbody>
+</table>
+
+<h2>6. <code>app/</code> — the shell</h2>
+
+<p>This is where the application boots and routes are defined:</p>
+
+<pre><code>app/
+├── App.tsx                       ← Root component
+├── AppRoutes.tsx                 ← Route definitions (React Router)
+├── NavSidebar.tsx                ← Left navigation menu
+├── AppContext.tsx                ← Global app context providers
+└── ...</code></pre>
+
+<p>When you need to add a new page to the navigation or register a new route, this is where you go.</p>
+
+<h2>7. Finding things — your workflow</h2>
+
+<p>When you get a task, use this mental flow:</p>
+
+<ol>
+  <li><strong>What page is it on?</strong> → Go to <code>pages/{pageName}/</code></li>
+  <li><strong>Does it use shared domain logic?</strong> → Check <code>concepts/{domain}/</code></li>
+  <li><strong>Does it make API calls?</strong> → Check <code>api/{domain}/</code></li>
+  <li><strong>Is it a generic UI widget?</strong> → Check <code>components/</code></li>
+  <li><strong>Is it a routing/navigation change?</strong> → Check <code>app/</code></li>
+</ol>
+
+<div class="callout callout-success">
+  <strong>Pro tip: Search by visible text</strong>
+  If you can see it in the browser, you can find it in the code. Use <code>Cmd+Shift+F</code> (global search) and search for the exact text string you see in the UI. That's often the fastest way to find a component.
+</div>
+
+<h2>8. Where tests live</h2>
+
+<table>
+  <thead><tr><th>Test type</th><th>Location</th></tr></thead>
+  <tbody>
+    <tr><td>Unit tests (Jest)</td><td><code>__tests__/</code> folders next to the code they test</td></tr>
+    <tr><td>Cypress mock tests</td><td><code>packages/cypress/cypress/tests/mocked/</code></td></tr>
+    <tr><td>Cypress E2E tests</td><td><code>packages/cypress/cypress/tests/e2e/</code></td></tr>
+  </tbody>
+</table>
+
+<hr>
+
+<h2>Check your understanding</h2>
+
+<div class="quiz" data-answer="b" data-hint="concepts/ holds reusable domain logic — hooks, types, context — shared across pages.">
+  <p class="quiz-q">1. A hook that fetches pipeline data is used by three different pages. Where does it live?</p>
+  <label><input type="radio" name="q1" value="a"> In pages/pipelines/ because pipelines own that data</label>
+  <label><input type="radio" name="q1" value="b"> In concepts/pipelines/ because it's reusable domain logic</label>
+  <label><input type="radio" name="q1" value="c"> In components/ because hooks are components technically</label>
+  <label><input type="radio" name="q1" value="d"> In api/ because it fetches data from the network</label>
+  <div class="feedback"></div>
+</div>
+
+<div class="quiz" data-answer="a" data-hint="pages/ folders map to dashboard nav sections — one folder per page.">
+  <p class="quiz-q">2. You need to fix a table on the Hardware Profiles admin page. Where do you start looking?</p>
+  <label><input type="radio" name="q2" value="a"> frontend/src/pages/hardwareProfiles/</label>
+  <label><input type="radio" name="q2" value="b"> frontend/src/api/hardwareProfiles/</label>
+  <label><input type="radio" name="q2" value="c"> frontend/src/components/table/</label>
+  <label><input type="radio" name="q2" value="d"> frontend/src/app/AppRoutes.tsx</label>
+  <div class="feedback"></div>
+</div>
+
+<div class="quiz" data-answer="d" data-hint="The api/ layer handles all network calls with proper auth and error handling.">
+  <p class="quiz-q">3. Why shouldn't you write raw <code>fetch()</code> in a page component?</p>
+  <label><input type="radio" name="q3" value="a"> The fetch API is not supported by the browsers we target</label>
+  <label><input type="radio" name="q3" value="b"> PatternFly provides its own network library that is faster</label>
+  <label><input type="radio" name="q3" value="c"> TypeScript does not allow fetch calls in React components</label>
+  <label><input type="radio" name="q3" value="d"> The project has API utilities that handle auth and errors</label>
+  <div class="feedback"></div>
+</div>
+
+<hr>
+
+<h2>Key takeaways</h2>
+<ul>
+  <li><strong><code>pages/</code></strong> = page-specific components (one folder per nav section)</li>
+  <li><strong><code>concepts/</code></strong> = reusable domain logic (hooks, types, context)</li>
+  <li><strong><code>api/</code></strong> = network calls to the backend/cluster</li>
+  <li><strong><code>components/</code></strong> = generic shared UI widgets</li>
+  <li><strong><code>app/</code></strong> = routes, navigation, global providers</li>
+  <li><strong>Search by visible text</strong> is the fastest way to find any component</li>
+</ul>
+
+<h2>What's next</h2>
+<p>You know <em>where</em> files live. Next we'll trace <strong>how data flows</strong> through these layers: from a Kubernetes resource on the cluster → through API calls → into React hooks → rendered on screen.</p>
+
+<div class="lesson-nav">
+  <a href="0005-local-cluster-workflow.html">&larr; Lesson 5: Local Cluster Workflow</a>
+  <a href="0007-how-data-flows.html">Next: How Data Flows &rarr;</a>
+</div>
+
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

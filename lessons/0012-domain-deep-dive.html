@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lesson 12: Domain Deep-Dive</title>
+  <link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+
+<h1>Lesson 12: Domain Deep-Dive</h1>
+<p><strong>Goal:</strong> Understand the core domain concepts of OpenShift AI — what users actually do with this dashboard and what each major feature area represents.</p>
+
+<hr>
+
+<h2>The one-sentence version</h2>
+<p><strong>This dashboard manages the full ML lifecycle: from organizing work (Projects) to developing models (Workbenches) to training them (Pipelines) to serving them in production (Model Serving).</strong></p>
+
+<h2>1. The ML lifecycle this dashboard covers</h2>
+
+<div class="diagram">┌──────────┐    ┌────────────┐    ┌──────────┐    ┌──────────────┐
+│  Organize │───▶│  Develop    │───▶│  Train    │───▶│  Deploy/Serve │
+│  (Projects)│    │ (Workbenches)│    │(Pipelines)│    │(Model Serving)│
+└──────────┘    └────────────┘    └──────────┘    └──────────────┘
+      │                │                 │                  │
+      ▼                ▼                 ▼                  ▼
+  Namespaces      Jupyter/VS Code    Kubeflow         InferenceService
+  + Resources      Notebooks         Pipeline runs    + Routes/endpoints</div>
+
+<h2>2. Core domain concepts</h2>
+
+<h3>Projects</h3>
+<p><strong>What it is:</strong> A container for all your ML work. Technically a Kubernetes Namespace with special labels.</p>
+<p><strong>Contains:</strong> Workbenches, pipelines, data connections, model servers — everything for one initiative.</p>
+<p><strong>Code:</strong> <code>frontend/src/pages/projects/</code> + <code>concepts/projects/</code></p>
+
+<h3>Workbenches</h3>
+<p><strong>What it is:</strong> A Jupyter Notebook or VS Code environment running in a container on the cluster.</p>
+<p><strong>K8s resource:</strong> A <code>Notebook</code> Custom Resource (from Kubeflow)</p>
+<p><strong>Users do:</strong> Write Python code, explore data, prototype models</p>
+<p><strong>Code:</strong> <code>frontend/src/pages/projects/notebook/</code></p>
+
+<h3>Pipelines</h3>
+<p><strong>What it is:</strong> Automated ML workflows — sequences of steps (data prep → train → evaluate → deploy).</p>
+<p><strong>K8s resource:</strong> Uses Kubeflow Pipelines (KFP) resources</p>
+<p><strong>Users do:</strong> Create pipeline definitions, trigger runs, view results</p>
+<p><strong>Code:</strong> <code>frontend/src/concepts/pipelines/</code> + <code>pages/pipelines/</code></p>
+
+<h3>Model Serving</h3>
+<p><strong>What it is:</strong> Deploying a trained model as an API endpoint so applications can send it data and get predictions.</p>
+<p><strong>K8s resources:</strong> <code>InferenceService</code>, <code>ServingRuntime</code></p>
+<p><strong>Users do:</strong> Deploy models, configure scaling, monitor performance</p>
+<p><strong>Code:</strong> <code>frontend/src/pages/modelServing/</code> + <code>concepts/modelServing/</code></p>
+
+<h3>Model Registry</h3>
+<p><strong>What it is:</strong> A catalog of trained models with versions, metadata, and lineage.</p>
+<p><strong>Users do:</strong> Register models, track versions, find models to deploy</p>
+<p><strong>Code:</strong> <code>packages/model-registry/</code></p>
+
+<h3>Data Connections</h3>
+<p><strong>What it is:</strong> Credentials and endpoints for external data stores (S3 buckets, databases).</p>
+<p><strong>K8s resource:</strong> Secrets with specific labels</p>
+<p><strong>Users do:</strong> Connect workbenches and pipelines to data</p>
+<p><strong>Code:</strong> <code>frontend/src/concepts/connectionTypes/</code></p>
+
+<h2>3. Admin-focused features</h2>
+
+<p>Some features are for cluster admins (not regular data scientists):</p>
+
+<table>
+  <thead><tr><th>Feature</th><th>Who uses it</th><th>What it configures</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Hardware Profiles</strong></td><td>Admins</td><td>GPU/CPU/memory presets for workbenches</td></tr>
+    <tr><td><strong>Serving Runtimes</strong></td><td>Admins</td><td>Which model servers are available (vLLM, TGIS, etc.)</td></tr>
+    <tr><td><strong>Cluster Settings</strong></td><td>Admins</td><td>Dashboard behavior, PVC sizes, telemetry</td></tr>
+    <tr><td><strong>Connection Types</strong></td><td>Admins</td><td>Templates for data connections (what fields to show)</td></tr>
+    <tr><td><strong>Accelerator Profiles</strong></td><td>Admins</td><td>GPU types available on the cluster</td></tr>
+  </tbody>
+</table>
+
+<h2>4. Newer/emerging features</h2>
+
+<table>
+  <thead><tr><th>Feature</th><th>What it does</th><th>Status</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Agent Runtimes (Agent Ops)</strong></td><td>Deploy and manage AI agents (LLM-powered autonomous tools)</td><td>Behind feature flag</td></tr>
+    <tr><td><strong>MLflow</strong></td><td>Experiment tracking and model registry integration</td><td>Requires MLflow CRD</td></tr>
+    <tr><td><strong>MCP Registry</strong></td><td>Model Context Protocol server registry for AI agents</td><td>New/emerging</td></tr>
+    <tr><td><strong>TrustyAI</strong></td><td>Model explainability and fairness monitoring</td><td>Available</td></tr>
+    <tr><td><strong>Distributed Workloads</strong></td><td>Ray / Kueue for distributed training</td><td>Available</td></tr>
+  </tbody>
+</table>
+
+<h2>5. How they relate to each other</h2>
+
+<div class="diagram">                        ┌─────────────────┐
+                        │    PROJECT       │
+                        │  (namespace)     │
+                        └────────┬────────┘
+              ┌──────────────────┼──────────────────┐
+              │                  │                   │
+    ┌─────────▼────────┐ ┌──────▼──────┐  ┌────────▼────────┐
+    │   WORKBENCH      │ │  PIPELINE   │  │  MODEL SERVER   │
+    │ (Notebook CR)    │ │  (KFP)      │  │ (InferenceService)│
+    └─────────┬────────┘ └──────┬──────┘  └────────┬────────┘
+              │                  │                   │
+    ┌─────────▼────────┐ ┌──────▼──────┐  ┌────────▼────────┐
+    │ DATA CONNECTION  │ │  PIPELINE   │  │  SERVING        │
+    │ (Secret)         │ │  RUN        │  │  RUNTIME        │
+    └──────────────────┘ └─────────────┘  └─────────────────┘</div>
+
+<h2>6. The vocabulary cheat sheet</h2>
+
+<table>
+  <thead><tr><th>Dashboard term</th><th>K8s term</th><th>Plain English</th></tr></thead>
+  <tbody>
+    <tr><td>Project</td><td>Namespace</td><td>A folder for organizing work</td></tr>
+    <tr><td>Workbench</td><td>Notebook CR</td><td>A coding environment (Jupyter)</td></tr>
+    <tr><td>Pipeline</td><td>KFP Pipeline</td><td>An automated workflow</td></tr>
+    <tr><td>Pipeline Run</td><td>KFP PipelineRun</td><td>One execution of a pipeline</td></tr>
+    <tr><td>Model Server</td><td>InferenceService</td><td>A deployed model accepting requests</td></tr>
+    <tr><td>Serving Runtime</td><td>ServingRuntime CR</td><td>The engine that runs models (vLLM, etc.)</td></tr>
+    <tr><td>Data Connection</td><td>Secret (labeled)</td><td>Credentials for S3/databases</td></tr>
+    <tr><td>Hardware Profile</td><td>HardwareProfile CR</td><td>CPU/GPU/memory template</td></tr>
+    <tr><td>Storage</td><td>PVC</td><td>A persistent disk for your workbench</td></tr>
+  </tbody>
+</table>
+
+<hr>
+
+<h2>Check your understanding</h2>
+
+<div class="quiz" data-answer="c" data-hint="A Project is a K8s Namespace with labels — it groups all ML resources together.">
+  <p class="quiz-q">1. What is a "Project" in the dashboard, technically?</p>
+  <label><input type="radio" name="q1" value="a"> A git repository cloned into the user's workbench</label>
+  <label><input type="radio" name="q1" value="b"> A folder on the user's local machine with Python files</label>
+  <label><input type="radio" name="q1" value="c"> A Kubernetes Namespace with specific labels applied</label>
+  <label><input type="radio" name="q1" value="d"> A Docker container running a Jupyter notebook server</label>
+  <div class="feedback"></div>
+</div>
+
+<div class="quiz" data-answer="b" data-hint="Model Serving deploys trained models as API endpoints for applications.">
+  <p class="quiz-q">2. What does "Model Serving" mean?</p>
+  <label><input type="radio" name="q2" value="a"> Uploading a model file to S3 storage for backup</label>
+  <label><input type="radio" name="q2" value="b"> Deploying a model as an API endpoint for predictions</label>
+  <label><input type="radio" name="q2" value="c"> Training a model on new data inside a pipeline step</label>
+  <label><input type="radio" name="q2" value="d"> Converting a notebook into a production Python script</label>
+  <div class="feedback"></div>
+</div>
+
+<div class="quiz" data-answer="d" data-hint="Hardware Profiles set CPU/GPU/memory presets — admin-only configuration.">
+  <p class="quiz-q">3. Hardware Profiles are used to:</p>
+  <label><input type="radio" name="q3" value="a"> Install GPU drivers on the user's local development machine</label>
+  <label><input type="radio" name="q3" value="b"> Compile TypeScript faster using additional CPU cores</label>
+  <label><input type="radio" name="q3" value="c"> Monitor cluster node health and restart failing pods</label>
+  <label><input type="radio" name="q3" value="d"> Define CPU/GPU/memory presets for workbenches and servers</label>
+  <div class="feedback"></div>
+</div>
+
+<hr>
+
+<h2>Key takeaways</h2>
+<ul>
+  <li><strong>Projects</strong> = Namespaces that organize all ML work</li>
+  <li><strong>Workbenches</strong> = Jupyter/VS Code environments on the cluster</li>
+  <li><strong>Pipelines</strong> = Automated ML workflows (train, evaluate, deploy)</li>
+  <li><strong>Model Serving</strong> = Deploy models as API endpoints</li>
+  <li><strong>Everything is a K8s resource</strong> — the dashboard is just a nice UI on top</li>
+  <li><strong>Admin features</strong> (hardware profiles, serving runtimes) configure what users can access</li>
+</ul>
+
+<h2>What's next</h2>
+<p>You now have the complete foundation. The next lessons dive deeper into <strong>specific areas you'll be working on</strong> — Agent Ops, RBAC, MLflow, Hardware Profiles, Pipelines, and more — with practical setup guides for each.</p>
+
+<div class="lesson-nav">
+  <a href="0011-module-federation.html">&larr; Lesson 11: Module Federation</a>
+  <a href="0013-area-deep-dives.html">Next: Area Deep-Dives &rarr;</a>
+</div>
+
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

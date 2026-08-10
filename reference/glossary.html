@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reference: ODH Dashboard Glossary</title>
+  <link rel="stylesheet" href="../assets/style.css">
+  <style>
+    dt { font-weight: 700; margin-top: 1rem; color: var(--accent); }
+    dd { margin-left: 0; margin-bottom: 0.5rem; }
+  </style>
+</head>
+<body>
+
+<h1>Glossary</h1>
+<p>Quick-reference definitions for terms you'll encounter in the ODH Dashboard codebase. Updated as new lessons introduce new vocabulary.</p>
+
+<hr>
+
+<h2>Project &amp; Product</h2>
+<dl>
+  <dt>ODH (Open Data Hub)</dt>
+  <dd>The open-source upstream project this repo belongs to.</dd>
+
+  <dt>RHOAI (Red Hat OpenShift AI)</dt>
+  <dd>Red Hat's supported product built from ODH. Same codebase, different packaging and branding.</dd>
+
+  <dt>Dashboard</dt>
+  <dd>The web application this repo builds — a UI for managing data science resources on Kubernetes.</dd>
+</dl>
+
+<h2>Infrastructure</h2>
+<dl>
+  <dt>Kubernetes (K8s)</dt>
+  <dd>An open-source system for running and managing containerized applications across servers.</dd>
+
+  <dt>OpenShift</dt>
+  <dd>Red Hat's distribution of Kubernetes with extra developer and enterprise features.</dd>
+
+  <dt>Resource (K8s)</dt>
+  <dd>A JSON/YAML object describing a desired state in K8s. Has <code>apiVersion</code>, <code>kind</code>, <code>metadata</code>, <code>spec</code>, <code>status</code>.</dd>
+
+  <dt>Namespace</dt>
+  <dd>A Kubernetes isolation boundary — like a folder for resources. Each Data Science Project is a namespace.</dd>
+
+  <dt>CRD (Custom Resource Definition)</dt>
+  <dd>A way to extend Kubernetes with new resource types (e.g., "Notebook", "InferenceService").</dd>
+
+  <dt>RBAC (Role-Based Access Control)</dt>
+  <dd>The system that controls who can do what in Kubernetes.</dd>
+
+  <dt>SAR / SSAR</dt>
+  <dd>SubjectAccessReview / SelfSubjectAccessReview — API calls to check "can this user do X?"</dd>
+</dl>
+
+<h2>Codebase</h2>
+<dl>
+  <dt>Monorepo</dt>
+  <dd>A single Git repository containing multiple related packages.</dd>
+
+  <dt>npm workspaces</dt>
+  <dd>npm's built-in feature for managing multiple packages in one repo, sharing <code>node_modules</code>.</dd>
+
+  <dt>Turbo</dt>
+  <dd>A build tool that runs tasks (build, test, lint) across monorepo packages efficiently with caching.</dd>
+
+  <dt>Module Federation</dt>
+  <dd>A webpack feature that lets packages load their code into the main app at runtime (not build time).</dd>
+
+  <dt>BFF (Backend For Frontend)</dt>
+  <dd>A small backend service written in Go that serves a specific feature package's API needs.</dd>
+
+  <dt>PatternFly (PF)</dt>
+  <dd>Red Hat's open-source UI component library — provides buttons, tables, modals, layouts, etc.</dd>
+
+  <dt>K8sResourceCommon</dt>
+  <dd>A TypeScript type representing the base shape of any Kubernetes resource object.</dd>
+</dl>
+
+<h2>Domain (Data Science)</h2>
+<dl>
+  <dt>Data Science Project</dt>
+  <dd>A workspace in the dashboard. Maps to a Kubernetes namespace. Contains workbenches, pipelines, etc.</dd>
+
+  <dt>Workbench</dt>
+  <dd>A running Jupyter notebook environment for writing and experimenting with code.</dd>
+
+  <dt>Pipeline</dt>
+  <dd>An automated multi-step workflow (e.g., "clean data → train model → evaluate").</dd>
+
+  <dt>Model Serving</dt>
+  <dd>Deploying a trained ML model so other applications can query it for predictions.</dd>
+
+  <dt>Model Registry</dt>
+  <dd>A catalog of trained models with version history and metadata.</dd>
+
+  <dt>Connection</dt>
+  <dd>Saved credentials for external services (S3 buckets, databases, API endpoints).</dd>
+
+  <dt>Hardware Profile</dt>
+  <dd>A predefined set of compute resources (CPU, memory, GPU) for running workbenches.</dd>
+
+  <dt>Notebook Controller</dt>
+  <dd>A Kubernetes controller that manages the lifecycle of notebook (workbench) pods.</dd>
+</dl>
+
+<h2>TypeScript</h2>
+<dl>
+  <dt>Type annotation</dt>
+  <dd>A label after a variable or parameter name: <code>name: string</code>. Tells TS what type a value must be.</dd>
+
+  <dt>Type inference</dt>
+  <dd>TS figuring out the type automatically from the value: <code>const x = 5</code> is inferred as <code>number</code>.</dd>
+
+  <dt><code>type</code></dt>
+  <dd>A keyword to define an object shape or union: <code>type Props = { text: string }</code>.</dd>
+
+  <dt><code>interface</code></dt>
+  <dd>Another way to define object shapes. Nearly interchangeable with <code>type</code> in this codebase.</dd>
+
+  <dt><code>enum</code></dt>
+  <dd>A set of named constants: <code>enum Status { Active, Inactive }</code>. Used instead of raw strings.</dd>
+
+  <dt>Union type (<code>|</code>)</dt>
+  <dd>"This OR that": <code>string | number</code> means the value can be either type.</dd>
+
+  <dt>Intersection type (<code>&amp;</code>)</dt>
+  <dd>"This AND that": <code>A &amp; B</code> means the value has all properties from both types.</dd>
+
+  <dt>Generic (<code>&lt;T&gt;</code>)</dt>
+  <dd>A type placeholder filled in by the caller: <code>React.FC&lt;MyProps&gt;</code> fills in the props type.</dd>
+
+  <dt><code>?.</code> (optional chaining)</dt>
+  <dd>Safely access a property that might not exist. Returns <code>undefined</code> instead of crashing.</dd>
+
+  <dt><code>??</code> (nullish coalescing)</dt>
+  <dd>Provide a fallback for <code>null</code>/<code>undefined</code>: <code>value ?? 'default'</code>.</dd>
+
+  <dt><code>as const</code></dt>
+  <dd>Makes object values readonly with narrow literal types instead of broad <code>string</code>.</dd>
+
+  <dt><code>void</code></dt>
+  <dd>Return type meaning "this function returns nothing."</dd>
+
+  <dt><code>React.FC&lt;Props&gt;</code></dt>
+  <dd>A React Function Component typed with a specific props shape.</dd>
+</dl>
+
+<h2>PatternFly (PF)</h2>
+<dl>
+  <dt>PatternFly (PF)</dt>
+  <dd>Red Hat's open-source UI component library. Provides pre-built React components, design tokens, and layout systems.</dd>
+
+  <dt>Design token</dt>
+  <dd>A CSS variable defined by PF (e.g., <code>--pf-t--global--spacer--md</code>) that stores a design value. Adapts to dark mode automatically.</dd>
+
+  <dt>PF utility class</dt>
+  <dd>A CSS class from PF (e.g., <code>pf-v6-u-mb-lg</code>) that applies a single style. Used when component props aren't enough.</dd>
+
+  <dt>Component variant</dt>
+  <dd>A pre-defined visual style for a PF component, set via a prop: <code>&lt;Button variant="danger"&gt;</code>.</dd>
+
+  <dt>Layout component</dt>
+  <dd>A PF component for arrangement: <code>Stack</code>, <code>Flex</code>, <code>Grid</code>, <code>Split</code>, <code>Gallery</code>. Use instead of custom CSS flex/grid.</dd>
+
+  <dt>Composable table API</dt>
+  <dd>PF's table pattern using individual <code>Table</code>, <code>Thead</code>, <code>Tbody</code>, <code>Tr</code>, <code>Th</code>, <code>Td</code> components.</dd>
+
+  <dt><code>@patternfly/react-core</code></dt>
+  <dd>The main PF package. Contains Button, Modal, Alert, Flex, Stack, TextInput, and most other components.</dd>
+
+  <dt><code>@patternfly/react-table</code></dt>
+  <dd>PF package for table components (Table, Thead, Tbody, Tr, Th, Td).</dd>
+
+  <dt><code>@patternfly/react-icons</code></dt>
+  <dd>PF package providing hundreds of icons as React components (e.g., <code>SearchIcon</code>, <code>ExternalLinkAltIcon</code>).</dd>
+
+  <dt>Wrapper component</dt>
+  <dd>A project-specific component that wraps a PF component with extra behavior (e.g., <code>DashboardModalFooter</code>, <code>Table</code> from <code>components/table/</code>).</dd>
+</dl>
+
+<h2>Development</h2>
+<dl>
+  <dt>TypeScript</dt>
+  <dd>A superset of JavaScript that adds static type checking. All code in this repo is TypeScript.</dd>
+
+  <dt>Jest</dt>
+  <dd>A JavaScript unit test framework. Tests use <code>describe</code>/<code>it</code>/<code>expect</code>.</dd>
+
+  <dt>Cypress</dt>
+  <dd>An end-to-end testing tool that runs a real browser and interacts with the app like a user.</dd>
+
+  <dt>ESLint</dt>
+  <dd>A tool that checks your code for style and potential errors (linting).</dd>
+
+  <dt>Prettier</dt>
+  <dd>A code formatter that enforces consistent formatting (indentation, quotes, etc.).</dd>
+
+  <dt>Husky</dt>
+  <dd>A tool that runs scripts (like linting) automatically when you commit code.</dd>
+
+  <dt><code>oc</code> (OpenShift CLI)</dt>
+  <dd>Command-line tool to log in to an OpenShift cluster and manage Kubernetes resources. Local backend needs a valid <code>oc login</code> session.</dd>
+
+  <dt><code>.env.local</code></dt>
+  <dd>Untracked local config (copied from <code>.env.local.example</code>). Holds values like <code>OC_PROJECT</code> and optional login helpers. Never commit it.</dd>
+
+  <dt>Hot reload</dt>
+  <dd>Dev-server behavior: save a frontend file and the browser updates without a full manual refresh.</dd>
+
+  <dt><code>start:dev:ext</code></dt>
+  <dd>Frontend script that runs the UI against an external cluster backend (<code>EXT_CLUSTER=true</code>). Usual path for UI-only work.</dd>
+
+  <dt>Dev feature flags</dt>
+  <dd>Append <code>?devFeatureFlags</code> to the dashboard URL to toggle feature flags for your browser session only.</dd>
+
+  <dt>Extension / plugin</dt>
+  <dd>A small declaration the app collects at runtime (e.g. <code>app.route</code>, <code>app.navigation/href</code>) instead of hardcoding every feature into one file.</dd>
+
+  <dt><code>app.route</code></dt>
+  <dd>Extension type that maps a URL <code>path</code> to a lazily loaded page component. Declared in <code>plugins/extensions/routes.ts</code> (and packages).</dd>
+
+  <dt><code>ApplicationsPage</code></dt>
+  <dd>Shared page shell from <code>@odh-dashboard/ui-core</code>: title, description, loading spinner, error, and empty states. Most screens wrap their body in it.</dd>
+
+  <dt><code>*Page.tsx</code></dt>
+  <dd>Convention for a screen component: call a data hook, pass results into <code>ApplicationsPage</code>, render body UI as children.</dd>
+
+  <dt><code>*Routes.tsx</code></dt>
+  <dd>Convention for nested React Router routes inside one feature (list / create / edit).</dd>
+
+  <dt><code>useWatch*</code> / data hook</dt>
+  <dd>A React hook that loads (and often watches) API/cluster data and returns a tuple like <code>[data, loaded, loadError, refresh]</code>.</dd>
+</dl>
+
+<p style="text-align: center; color: #888; margin-top: 2rem; font-size: 0.85rem;">
+  Last updated with Lesson 5. This glossary grows as new lessons are added.
+</p>
+
+</body>
+</html>

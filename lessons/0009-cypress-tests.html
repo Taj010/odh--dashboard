@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lesson 9: Cypress Tests</title>
+  <link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+
+<h1>Lesson 9: Cypress Tests</h1>
+<p><strong>Goal:</strong> Understand the two types of Cypress tests in this project (mock and E2E), how they differ from Jest, and how to run them.</p>
+
+<hr>
+
+<h2>The one-sentence version</h2>
+<p><strong>Cypress opens a real browser and clicks through the app — "mock" tests use fake API responses, "E2E" tests talk to a real cluster.</strong></p>
+
+<h2>1. Cypress vs Jest — when to use which</h2>
+
+<table>
+  <thead><tr><th></th><th>Jest (unit)</th><th>Cypress mock</th><th>Cypress E2E</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Tests</strong></td><td>A function, hook, or component in isolation</td><td>A page or flow with fake data</td><td>A full user flow against a live cluster</td></tr>
+    <tr><td><strong>Speed</strong></td><td>Very fast (milliseconds)</td><td>Fast (seconds)</td><td>Slow (relies on cluster)</td></tr>
+    <tr><td><strong>Confidence</strong></td><td>Logic is correct</td><td>UI renders and flows work</td><td>Everything works end-to-end</td></tr>
+    <tr><td><strong>Network</strong></td><td>Mocked (jest.mock)</td><td>Intercepted (cy.intercept)</td><td>Real cluster responses</td></tr>
+    <tr><td><strong>Runs in</strong></td><td>Node.js (jsdom)</td><td>Real browser (no cluster)</td><td>Real browser + real cluster</td></tr>
+  </tbody>
+</table>
+
+<h2>2. Where Cypress tests live</h2>
+
+<pre><code>packages/cypress/
+├── cypress/
+│   ├── tests/
+│   │   ├── mocked/              ← Mock tests (most common for you)
+│   │   │   ├── projects/
+│   │   │   ├── pipelines/
+│   │   │   ├── hardwareProfiles/
+│   │   │   └── ...
+│   │   └── e2e/                 ← E2E tests (need a live cluster)
+│   │       ├── projects/
+│   │       └── ...
+│   ├── pages/                   ← Page objects (reusable selectors)
+│   │   ├── projects.ts
+│   │   ├── pipelines.ts
+│   │   └── ...
+│   └── support/                 ← Helpers and custom commands
+└── ...</code></pre>
+
+<h2>3. Mock tests (your main focus)</h2>
+
+<p>Mock tests intercept every API call and return pre-defined responses. The app thinks it's talking to a real cluster, but it's all fake data. This means:</p>
+
+<ul>
+  <li>No cluster needed to run them</li>
+  <li>Tests are fast and deterministic</li>
+  <li>You control exactly what data appears</li>
+</ul>
+
+<pre><code>// packages/cypress/cypress/tests/mocked/hardwareProfiles/hardwareProfiles.cy.ts
+
+describe('Hardware Profiles', () => {
+  beforeEach(() => {
+    // Intercept API calls with fake data
+    cy.interceptOdh(
+      'GET /api/hardware-profiles',
+      mockHardwareProfiles,
+    );
+    // Visit the page
+    hardwareProfilesPage.visit();
+  });
+
+  it('should display the hardware profiles table', () => {
+    hardwareProfilesPage.findTable().should('exist');
+    hardwareProfilesPage.findTableRows().should('have.length', 3);
+  });
+
+  it('should open the create modal', () => {
+    hardwareProfilesPage.findCreateButton().click();
+    hardwareProfilesPage.findCreateModal().should('be.visible');
+  });
+});</code></pre>
+
+<h2>4. Page objects — the selector pattern</h2>
+
+<p>Instead of writing raw <code>cy.get('[data-testid="..."]')</code> everywhere, this project uses <strong>page objects</strong> — classes that encapsulate selectors:</p>
+
+<pre><code>// packages/cypress/cypress/pages/hardwareProfiles.ts
+
+class HardwareProfilesPage {
+  visit() {
+    cy.visit('/hardwareProfiles');
+  }
+
+  findTable() {
+    return cy.findByTestId('hardware-profiles-table');
+  }
+
+  findCreateButton() {
+    return cy.findByRole('button', { name: /create/i });
+  }
+
+  findTableRows() {
+    return this.findTable().find('tbody tr');
+  }
+}
+
+export const hardwareProfilesPage = new HardwareProfilesPage();</code></pre>
+
+<div class="callout callout-danger">
+  <strong>Never write raw selectors in test files</strong>
+  Always use page objects. If a <code>data-testid</code> changes, you update it in one place (the page object), not in 20 test files.
+</div>
+
+<h2>5. Key Cypress patterns in this project</h2>
+
+<h3><code>cy.interceptOdh</code></h3>
+<p>A custom command that intercepts the dashboard's API calls with mock responses:</p>
+<pre><code>cy.interceptOdh('GET /api/projects', mockProjects);
+cy.interceptOdh('POST /api/projects', { success: true });</code></pre>
+
+<h3>Waiting for intercepts (not timers!)</h3>
+<pre><code>// ✅ Good: wait for the API call to complete
+cy.interceptOdh('GET /api/projects', mockProjects).as('getProjects');
+cy.wait('@getProjects');
+
+// ❌ Bad: fixed time wait
+cy.wait(3000);</code></pre>
+
+<h3>Asserting something does NOT exist</h3>
+<pre><code>// ✅ Correct
+cy.findByText('Delete').should('not.exist');
+
+// ❌ Wrong
+cy.findByText('Delete').should('have.length', 0);</code></pre>
+
+<h2>6. Running Cypress tests</h2>
+
+<pre><code># Open the Cypress GUI (interactive mode)
+cd packages/cypress
+npx cypress open
+
+# Run mock tests headlessly (CI mode)
+npx cypress run --spec "cypress/tests/mocked/**/*.cy.ts"
+
+# Run a specific test file
+npx cypress run --spec "cypress/tests/mocked/hardwareProfiles/hardwareProfiles.cy.ts"</code></pre>
+
+<div class="callout callout-info">
+  <strong>Interactive mode is amazing for debugging</strong>
+  <code>npx cypress open</code> shows you the actual browser, step by step. You can time-travel through each command and see what the DOM looked like at each point.
+</div>
+
+<h2>7. E2E tests (for context)</h2>
+
+<p>E2E tests hit a real cluster. You'll rarely write these as a new contributor — they need specific cluster setup and are slower to develop. But know they exist:</p>
+
+<ul>
+  <li>They test the real API responses, auth flows, and data persistence</li>
+  <li>They run in CI against a test cluster</li>
+  <li>They catch issues that mocks can't (wrong API shapes, auth problems)</li>
+</ul>
+
+<h2>8. When to write which test</h2>
+
+<table>
+  <thead><tr><th>Scenario</th><th>Test type</th></tr></thead>
+  <tbody>
+    <tr><td>New utility function (string formatting, validation)</td><td>Jest unit test</td></tr>
+    <tr><td>New React hook (data fetching logic)</td><td>Jest + renderHook</td></tr>
+    <tr><td>New page with a table and actions</td><td>Cypress mock test</td></tr>
+    <tr><td>Critical user flow (create project end-to-end)</td><td>Cypress E2E</td></tr>
+    <tr><td>Bug fix in a form validation</td><td>Jest (for the validation fn) + Cypress mock (for the form)</td></tr>
+  </tbody>
+</table>
+
+<hr>
+
+<h2>Check your understanding</h2>
+
+<div class="quiz" data-answer="b" data-hint="Mock tests intercept API calls with fake data — no cluster needed.">
+  <p class="quiz-q">1. What makes Cypress mock tests different from E2E tests?</p>
+  <label><input type="radio" name="q1" value="a"> Mock tests run in Node.js while E2E tests run in a browser</label>
+  <label><input type="radio" name="q1" value="b"> Mock tests use fake API responses; E2E tests hit a real cluster</label>
+  <label><input type="radio" name="q1" value="c"> Mock tests only test CSS; E2E tests check JavaScript logic</label>
+  <label><input type="radio" name="q1" value="d"> Mock tests are written in Python while E2E tests are TypeScript</label>
+  <div class="feedback"></div>
+</div>
+
+<div class="quiz" data-answer="c" data-hint="Page objects centralize selectors so changes only need one update.">
+  <p class="quiz-q">2. Why does the project use page objects instead of raw <code>cy.get()</code> selectors?</p>
+  <label><input type="radio" name="q2" value="a"> Cypress requires page objects or it throws a runtime error</label>
+  <label><input type="radio" name="q2" value="b"> Raw selectors are slower because Cypress parses them twice</label>
+  <label><input type="radio" name="q2" value="c"> To centralize selectors so a testid change updates one place</label>
+  <label><input type="radio" name="q2" value="d"> Page objects automatically generate accessibility reports</label>
+  <div class="feedback"></div>
+</div>
+
+<div class="quiz" data-answer="d" data-hint="cy.wait('@alias') waits for a specific API call — deterministic and fast.">
+  <p class="quiz-q">3. Instead of <code>cy.wait(3000)</code>, what should you use?</p>
+  <label><input type="radio" name="q3" value="a"> cy.pause() followed by cy.resume() to control exact timing</label>
+  <label><input type="radio" name="q3" value="b"> setTimeout inside a cy.then() callback for flexibility</label>
+  <label><input type="radio" name="q3" value="c"> cy.clock() to freeze time and advance it manually by 3000ms</label>
+  <label><input type="radio" name="q3" value="d"> cy.intercept() with .as('alias') then cy.wait('@alias')</label>
+  <div class="feedback"></div>
+</div>
+
+<hr>
+
+<h2>Key takeaways</h2>
+<ul>
+  <li><strong>Mock tests</strong> = most common for you; fake data, real browser, no cluster</li>
+  <li><strong>Page objects</strong> = always use them for selectors</li>
+  <li><strong><code>cy.interceptOdh</code></strong> = mock API responses</li>
+  <li><strong>Never <code>cy.wait(number)</code></strong> — wait for intercept aliases instead</li>
+  <li><strong><code>npx cypress open</code></strong> = interactive debugging (time-travel)</li>
+</ul>
+
+<h2>What's next</h2>
+<p>You know how to test code. Next: <strong>how to open a PR</strong> that follows this project's conventions and passes CI.</p>
+
+<div class="lesson-nav">
+  <a href="0008-unit-tests-jest.html">&larr; Lesson 8: Unit Tests (Jest)</a>
+  <a href="0010-opening-a-pr.html">Next: Opening a PR &rarr;</a>
+</div>
+
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

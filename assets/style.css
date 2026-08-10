@@ -1,0 +1,163 @@
+/* ODH Dashboard Learning — shared lesson stylesheet */
+
+:root {
+  --text: #1a1a2e;
+  --bg: #fafafa;
+  --accent: #0066cc;
+  --accent-light: #e8f0fe;
+  --border: #d0d7de;
+  --code-bg: #f4f4f8;
+  --success: #1e7e34;
+  --warn: #b08800;
+  --danger: #c9190b;
+  --sidebar: #f0f2f5;
+  --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "SF Mono", "Fira Code", "Cascadia Code", Consolas, monospace;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html {
+  font-size: 17px;
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  max-width: 44rem;
+  margin: 2rem auto;
+  padding: 0 1.5rem;
+  font-family: var(--font-body);
+  color: var(--text);
+  background: var(--bg);
+}
+
+h1, h2, h3, h4 { margin-top: 2rem; margin-bottom: 0.5rem; line-height: 1.25; }
+h1 { font-size: 1.8rem; border-bottom: 2px solid var(--accent); padding-bottom: 0.3rem; }
+h2 { font-size: 1.35rem; color: var(--accent); }
+h3 { font-size: 1.1rem; }
+
+a { color: var(--accent); text-decoration: none; border-bottom: 1px solid transparent; }
+a:hover { border-bottom-color: var(--accent); }
+
+code {
+  font-family: var(--font-mono);
+  font-size: 0.88em;
+  background: var(--code-bg);
+  padding: 0.15em 0.35em;
+  border-radius: 4px;
+}
+
+pre {
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 1rem 1.2rem;
+  overflow-x: auto;
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+pre code { background: none; padding: 0; }
+
+blockquote {
+  margin: 1.2rem 0;
+  padding: 0.8rem 1rem;
+  border-left: 4px solid var(--accent);
+  background: var(--accent-light);
+  border-radius: 0 6px 6px 0;
+}
+blockquote p { margin: 0; }
+
+table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+th, td { border: 1px solid var(--border); padding: 0.5rem 0.75rem; text-align: left; }
+th { background: var(--sidebar); font-weight: 600; }
+
+.callout {
+  padding: 1rem 1.2rem;
+  border-radius: 6px;
+  margin: 1.2rem 0;
+  border-left: 4px solid;
+}
+.callout-info    { background: var(--accent-light); border-color: var(--accent); }
+.callout-success { background: #e6f4ea;            border-color: var(--success); }
+.callout-warn    { background: #fff8e1;             border-color: var(--warn); }
+.callout-danger  { background: #fde7e7;             border-color: var(--danger); }
+.callout strong  { display: block; margin-bottom: 0.3rem; }
+
+.diagram {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin: 1.5rem 0;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  line-height: 1.8;
+  white-space: pre;
+  overflow-x: auto;
+}
+
+.tag {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.15em 0.5em;
+  border-radius: 12px;
+  vertical-align: middle;
+}
+.tag-js     { background: #f7df1e; color: #1a1a2e; }
+.tag-ts     { background: #3178c6; color: white; }
+.tag-react  { background: #61dafb; color: #1a1a2e; }
+.tag-go     { background: #00add8; color: white; }
+.tag-k8s    { background: #326ce5; color: white; }
+.tag-new    { background: #e8f0fe; color: var(--accent); border: 1px solid var(--accent); }
+
+.lesson-nav {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 3rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+  font-size: 0.9rem;
+}
+.lesson-nav a { font-weight: 600; }
+
+.quiz { margin: 1.5rem 0; }
+.quiz-q { font-weight: 600; margin-bottom: 0.5rem; }
+.quiz label {
+  display: block;
+  padding: 0.5rem 0.75rem;
+  margin: 0.3rem 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.quiz label:hover { background: var(--accent-light); }
+.quiz input[type="radio"] { margin-right: 0.5rem; }
+.quiz .feedback {
+  display: none;
+  padding: 0.6rem 0.8rem;
+  margin-top: 0.5rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+.quiz .feedback.correct { background: #e6f4ea; color: var(--success); display: block; }
+.quiz .feedback.wrong   { background: #fde7e7; color: var(--danger);  display: block; }
+
+.footer-reminder {
+  margin-top: 2.5rem;
+  padding: 1rem;
+  background: var(--sidebar);
+  border-radius: 6px;
+  font-size: 0.9rem;
+  text-align: center;
+  color: #555;
+}
+
+@media print {
+  body { max-width: 100%; margin: 0; }
+  .quiz label { break-inside: avoid; }
+  a[href]::after { content: " (" attr(href) ")"; font-size: 0.8em; color: #666; }
+}

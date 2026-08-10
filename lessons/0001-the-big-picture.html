@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lesson 1: The Big Picture</title>
+  <link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+
+<h1>Lesson 1: The Big Picture</h1>
+<p><strong>Goal:</strong> Understand what this repo builds, why it exists, and how the major pieces fit together — so that when you open any file, you know roughly where you are.</p>
+
+<hr>
+
+<h2>What does this project actually do?</h2>
+
+<p>Imagine you're a data scientist. You need to:</p>
+<ul>
+  <li>Spin up a <strong>notebook</strong> (like a JupyterLab coding environment) to experiment with data</li>
+  <li>Train a machine learning <strong>model</strong></li>
+  <li>Deploy that model so other applications can use it (called <strong>model serving</strong>)</li>
+  <li>Build and run <strong>pipelines</strong> — automated sequences of steps that process data</li>
+</ul>
+
+<p>All of these things run on <strong>Kubernetes</strong> (we'll explain that in a moment). But Kubernetes is complex — it's all YAML files and command-line tools. Most data scientists don't want to deal with that.</p>
+
+<p><strong>This repo builds the web dashboard</strong> that gives data scientists a friendly UI to do all of the above. It's the web app layer on top of the Kubernetes infrastructure.</p>
+
+<div class="callout callout-info">
+  <strong>Two names, one product</strong>
+  You'll see two names: <em>Open Data Hub</em> (ODH) is the open-source upstream project. <em>Red Hat OpenShift AI</em> (RHOAI) is Red Hat's supported product built from it. Same codebase, different packaging. Think of it like Chromium vs. Chrome.
+</div>
+
+<h2>What is Kubernetes? (The 2-minute version)</h2>
+
+<p>You know how when you write a React app locally, you run <code>npm start</code> and it runs on your laptop? In production, apps don't run on someone's laptop — they run on <strong>servers</strong>.</p>
+
+<p><strong>Kubernetes</strong> (often abbreviated <strong>K8s</strong>) is a system that manages running applications on many servers. It handles:</p>
+
+<ul>
+  <li><strong>Scheduling</strong> — deciding which server runs your app</li>
+  <li><strong>Scaling</strong> — running more copies if traffic increases</li>
+  <li><strong>Self-healing</strong> — restarting your app if it crashes</li>
+</ul>
+
+<p>Everything in Kubernetes is described as a <strong>resource</strong> — a JSON/YAML object with a <code>kind</code>, a <code>metadata.name</code>, and a <code>spec</code>. For example, a "Deployment" resource tells Kubernetes "please run 3 copies of my container image."</p>
+
+<p><strong>OpenShift</strong> is Red Hat's distribution of Kubernetes — it adds things like a web console, built-in authentication, and developer-friendly features on top of plain Kubernetes. Same core, extra features.</p>
+
+<div class="callout callout-warn">
+  <strong>You don't need to be a K8s expert</strong>
+  As a dashboard frontend contributor, you mostly interact with K8s <em>data</em> — you fetch resources, display them, and send updates. You don't need to manage clusters. Think of it as: the dashboard is a CRUD app where the database is Kubernetes.
+</div>
+
+<h2>The shape of the repo: a monorepo</h2>
+
+<p>This is not a single app in a single folder. It's a <strong>monorepo</strong> — one Git repository containing <em>many</em> related packages.</p>
+
+<p>Why? Because the dashboard has grown. Instead of one giant frontend, features are split into <strong>independently-developed packages</strong> that plug into the main shell at runtime. Think of it like a browser with extensions.</p>
+
+<div class="diagram">
+odh-dashboard/
+├── <strong>frontend/</strong>          ← The main React app (the "host")
+├── <strong>backend/</strong>           ← Node.js/Express API server
+├── <strong>packages/</strong>          ← ~25 feature packages (the "plugins")
+│   ├── model-registry/    Model registration &amp; versioning
+│   ├── model-serving/     Deploy models for inference
+│   ├── gen-ai/            Generative AI / chatbot features
+│   ├── maas/              Model-as-a-Service
+│   ├── notebooks/         Jupyter notebook management
+│   ├── cypress/           Shared test framework
+│   └── ...                More feature packages
+├── <strong>distributions/</strong>    ← Different "flavors" of the dashboard
+├── <strong>dashboard-operator/</strong> ← Go code that deploys the dashboard itself
+└── <strong>docs/</strong>              ← Documentation
+</div>
+
+<h3>The analogy: a mall with shops</h3>
+
+<p>Think of it this way:</p>
+<ul>
+  <li>The <code>frontend/</code> folder is the <strong>mall building</strong> — the shell, navigation, login, shared layout</li>
+  <li>Each <code>packages/*</code> folder is a <strong>shop</strong> — it has its own UI, its own features, sometimes its own backend (called a BFF — "Backend For Frontend")</li>
+  <li>The shops plug into the mall at runtime using a technology called <strong>Module Federation</strong> (we'll cover that later)</li>
+  <li>The <code>backend/</code> is the <strong>mall management office</strong> — it handles auth, proxies requests to Kubernetes, and provides shared services</li>
+</ul>
+
+<h2>The five folders you'll care about most</h2>
+
+<table>
+  <thead>
+    <tr><th>Folder</th><th>What</th><th>Language</th><th>When you'd touch it</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>frontend/src/</code></td>
+      <td>Main dashboard UI</td>
+      <td><span class="tag tag-ts">TypeScript</span> <span class="tag tag-react">React</span></td>
+      <td>Most of the time — shared components, pages, hooks</td>
+    </tr>
+    <tr>
+      <td><code>packages/*/</code></td>
+      <td>Feature packages</td>
+      <td><span class="tag tag-ts">TypeScript</span> <span class="tag tag-react">React</span></td>
+      <td>When working on a specific feature area</td>
+    </tr>
+    <tr>
+      <td><code>backend/src/</code></td>
+      <td>Node.js API server</td>
+      <td><span class="tag tag-ts">TypeScript</span></td>
+      <td>Auth changes, proxy logic, API routes</td>
+    </tr>
+    <tr>
+      <td><code>docs/</code></td>
+      <td>Documentation</td>
+      <td>Markdown</td>
+      <td>Understanding how things work, or writing docs</td>
+    </tr>
+    <tr>
+      <td><code>packages/cypress/</code></td>
+      <td>Test framework</td>
+      <td><span class="tag tag-ts">TypeScript</span></td>
+      <td>Writing end-to-end tests</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Inside <code>frontend/src/</code> — the structure that matters</h2>
+
+<p>The main frontend follows a specific folder convention. Knowing this saves you from wandering:</p>
+
+<table>
+  <thead>
+    <tr><th>Folder</th><th>Purpose</th><th>Rule</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>src/pages/</code></td>
+      <td>One folder per nav item / route</td>
+      <td>Can import from anywhere</td>
+    </tr>
+    <tr>
+      <td><code>src/concepts/</code></td>
+      <td>Shared logic for a domain concept (e.g., "projects", "notebooks")</td>
+      <td>Cannot import from <code>pages/</code></td>
+    </tr>
+    <tr>
+      <td><code>src/components/</code></td>
+      <td>Generic reusable components (not tied to a feature)</td>
+      <td>Can only import from <code>utilities/</code></td>
+    </tr>
+    <tr>
+      <td><code>src/api/</code></td>
+      <td>API call functions (fetch data, create resources)</td>
+      <td>Can only import from <code>utilities/</code></td>
+    </tr>
+    <tr>
+      <td><code>src/utilities/</code></td>
+      <td>Generic helpers (string utils, date formatting, etc.)</td>
+      <td>Cannot import from anything else</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="callout callout-info">
+  <strong>The import hierarchy</strong>
+  Notice the pattern: <code>pages → concepts → components → utilities</code>. Each layer can import from layers below it, but not above. This prevents circular dependencies and keeps the code organized. This is documented in <a href="../docs/architecture.md">docs/architecture.md</a>.
+</div>
+
+<h2>Key technologies you'll encounter</h2>
+
+<table>
+  <thead>
+    <tr><th>Technology</th><th>What it is</th><th>Analogy for a JS/React developer</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>TypeScript</strong></td>
+      <td>JavaScript with type annotations</td>
+      <td>Like PropTypes but for <em>everything</em>, and checked at build time</td>
+    </tr>
+    <tr>
+      <td><strong>PatternFly</strong></td>
+      <td>Red Hat's UI component library</td>
+      <td>Like Material UI or Ant Design — buttons, tables, modals, layouts</td>
+    </tr>
+    <tr>
+      <td><strong>npm workspaces</strong></td>
+      <td>Lets multiple packages share one <code>node_modules</code></td>
+      <td>Like having multiple <code>create-react-app</code> projects in one repo that share dependencies</td>
+    </tr>
+    <tr>
+      <td><strong>Turbo</strong></td>
+      <td>Runs tasks (build, test, lint) across all packages efficiently</td>
+      <td>Like running <code>npm run build</code> in every package, but smart about caching and order</td>
+    </tr>
+    <tr>
+      <td><strong>Module Federation</strong></td>
+      <td>Loads package code into the main app at runtime</td>
+      <td>Like <code>&lt;script&gt;</code> tags that load React components from different URLs</td>
+    </tr>
+    <tr>
+      <td><strong>Jest</strong></td>
+      <td>Unit test runner</td>
+      <td>You write <code>describe</code>/<code>it</code>/<code>expect</code> — tests run fast, no browser needed</td>
+    </tr>
+    <tr>
+      <td><strong>Cypress</strong></td>
+      <td>End-to-end test runner</td>
+      <td>Opens a real browser and clicks through your app like a user would</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>How data flows: the request path</h2>
+
+<p>When a user clicks something in the dashboard, here's what happens:</p>
+
+<div class="diagram">
+   Browser (React app)
+         │
+         ▼
+   Dashboard Backend (Node.js)
+         │
+         ▼
+   Kubernetes API Server
+         │
+         ▼
+   Actual resources (notebooks, models, pipelines, etc.)
+</div>
+
+<p>The React app <strong>never talks to Kubernetes directly</strong>. It always goes through the backend, which:</p>
+<ol>
+  <li>Checks that you're authenticated (logged in)</li>
+  <li>Proxies your request to the Kubernetes API with your credentials</li>
+  <li>Returns the data back to the frontend</li>
+</ol>
+
+<p>This is important because it means the frontend code deals with <strong>Kubernetes resource objects</strong> as its data. Instead of a typical REST API returning <code>{ id: 1, name: "Alice" }</code>, you'll see objects like:</p>
+
+<pre><code>{
+  "apiVersion": "v1",
+  "kind": "Namespace",
+  "metadata": {
+    "name": "my-project",
+    "labels": { ... }
+  },
+  "spec": { ... },
+  "status": { ... }
+}</code></pre>
+
+<p>Every K8s resource has this shape: <code>apiVersion</code>, <code>kind</code>, <code>metadata</code>, <code>spec</code>, <code>status</code>. You'll see TypeScript types like <code>K8sResourceCommon</code> and <code>NotebookKind</code> throughout the codebase — they describe these shapes.</p>
+
+<h2>The domain: what the dashboard manages</h2>
+
+<p>Here's a quick glossary of the main things users do in the dashboard:</p>
+
+<table>
+  <thead>
+    <tr><th>Concept</th><th>What it is</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><strong>Data Science Project</strong></td><td>A workspace (Kubernetes namespace) where a team puts all their stuff</td></tr>
+    <tr><td><strong>Workbench</strong></td><td>A running Jupyter notebook environment for writing code and experimenting</td></tr>
+    <tr><td><strong>Pipeline</strong></td><td>An automated workflow: "first clean data, then train model, then evaluate"</td></tr>
+    <tr><td><strong>Model Serving</strong></td><td>Deploying a trained model so other apps can send it data and get predictions</td></tr>
+    <tr><td><strong>Model Registry</strong></td><td>A catalog of trained models with versions and metadata</td></tr>
+    <tr><td><strong>Connection</strong></td><td>Credentials to external services (databases, S3 storage, etc.)</td></tr>
+    <tr><td><strong>Hardware Profile</strong></td><td>A predefined set of CPU/memory/GPU resources for a workbench</td></tr>
+  </tbody>
+</table>
+
+<h2>Your first development commands</h2>
+
+<p>To run the dashboard locally, you need Node.js 22+ and access to an OpenShift cluster (for the backend to proxy to). The basic flow:</p>
+
+<pre><code># Install all dependencies (runs across the entire monorepo)
+npm install
+
+# Start frontend + backend in dev mode
+npm run dev
+
+# Frontend: http://localhost:4010
+# Backend:  http://localhost:4000</code></pre>
+
+<p>Other commands you'll use often:</p>
+
+<pre><code># Run linting across all packages
+npm run lint
+
+# Run type checking across all packages
+npm run type-check
+
+# Run unit tests
+npm run test-unit
+
+# Run unit tests for just the frontend
+npm run test:frontend</code></pre>
+
+<hr>
+
+<h2>Check your understanding</h2>
+
+<div class="quiz" data-answer="b" data-hint="It's a web UI for managing ML/data science resources on Kubernetes.">
+  <p class="quiz-q">1. What does the ODH Dashboard do?</p>
+  <label><input type="radio" name="q1" value="a"> It trains machine learning models directly in the browser</label>
+  <label><input type="radio" name="q1" value="b"> It provides a web UI for managing data science resources on Kubernetes</label>
+  <label><input type="radio" name="q1" value="c"> It is a Kubernetes cluster management tool for sysadmins</label>
+  <label><input type="radio" name="q1" value="d"> It is a code editor similar to VS Code that runs in the cloud</label>
+  <div class="feedback"></div>
+</div>
+
+<div class="quiz" data-answer="c" data-hint="The frontend/ folder is the main app shell; packages/ are the feature plugins.">
+  <p class="quiz-q">2. In the mall analogy, what is <code>frontend/</code>?</p>
+  <label><input type="radio" name="q2" value="a"> One of the shops inside the mall</label>
+  <label><input type="radio" name="q2" value="b"> The parking lot outside the mall</label>
+  <label><input type="radio" name="q2" value="c"> The mall building itself — the shell, navigation, and shared layout</label>
+  <label><input type="radio" name="q2" value="d"> The mall's security office that checks IDs at the entrance</label>
+  <div class="feedback"></div>
+</div>
+
+<div class="quiz" data-answer="a" data-hint="The frontend never talks directly to K8s — the backend proxies requests.">
+  <p class="quiz-q">3. When the React app needs Kubernetes data, where does the request go first?</p>
+  <label><input type="radio" name="q3" value="a"> To the Dashboard backend (Node.js), which proxies it to Kubernetes</label>
+  <label><input type="radio" name="q3" value="b"> Directly to the Kubernetes API server from the browser</label>
+  <label><input type="radio" name="q3" value="c"> To a third-party cloud API that wraps Kubernetes for convenience</label>
+  <label><input type="radio" name="q3" value="d"> To the PatternFly component library which handles data fetching</label>
+  <div class="feedback"></div>
+</div>
+
+<div class="quiz" data-answer="b" data-hint="concepts/ cannot import from pages/ — it only imports from components/ and utilities/.">
+  <p class="quiz-q">4. Which import is <strong>not allowed</strong> in <code>frontend/src/</code>?</p>
+  <label><input type="radio" name="q4" value="a"> <code>pages/</code> importing from <code>concepts/</code></label>
+  <label><input type="radio" name="q4" value="b"> <code>concepts/</code> importing from <code>pages/</code></label>
+  <label><input type="radio" name="q4" value="c"> <code>pages/</code> importing from <code>utilities/</code></label>
+  <label><input type="radio" name="q4" value="d"> <code>components/</code> importing from <code>utilities/</code></label>
+  <div class="feedback"></div>
+</div>
+
+<hr>
+
+<h2>Recommended reading</h2>
+<p>The single best thing to read next is the <a href="../docs/architecture.md">Architecture doc</a> in this repo. It's where the diagrams above come from, and it goes deeper into how authentication and the proxy layer work.</p>
+
+<h2>What's next</h2>
+<p>In the next lesson, we'll zoom into <strong>TypeScript</strong> — since almost every file in this repo is <code>.ts</code> or <code>.tsx</code>, understanding it is the single biggest unlock for reading the codebase. We'll connect it to the JS you already know.</p>
+
+<div class="footer-reminder">
+  Questions? Something unclear? Ask your teacher (the agent) — I can explain any part of this in more detail, show you real files from the repo, or adjust the pace. Just ask.
+</div>
+
+<div class="lesson-nav">
+  <span></span>
+  <a href="0002-typescript-for-js-developers.html">Next: TypeScript for JS Developers &rarr;</a>
+</div>
+
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

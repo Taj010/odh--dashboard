@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lesson 7: How Data Flows</title>
+  <link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+
+<h1>Lesson 7: How Data Flows</h1>
+<p><strong>Goal:</strong> Trace how data moves from a Kubernetes resource on the cluster all the way to pixels on your screen — and back when the user submits a form.</p>
+
+<hr>
+
+<h2>The one-sentence version</h2>
+<p><strong>K8s resource → backend proxy → API function → React hook → component renders it.</strong></p>
+
+<h2>1. The full picture</h2>
+
+<div class="diagram">┌─────────────────────────────────────────────────────────────┐
+│  CLUSTER (Kubernetes API)                                    │
+│  Stores: Projects, Notebooks, InferenceServices, Pipelines…  │
+└────────────────────────────┬────────────────────────────────┘
+                             │  HTTP (REST)
+                             ▼
+┌─────────────────────────────────────────────────────────────┐
+│  BACKEND (Node.js / Express)                                 │
+│  Proxies K8s calls, adds auth token, sometimes aggregates    │
+└────────────────────────────┬────────────────────────────────┘
+                             │  HTTP (internal)
+                             ▼
+┌─────────────────────────────────────────────────────────────┐
+│  API LAYER (frontend/src/api/)                               │
+│  Functions like getProjects(), createNotebook()               │
+│  Typed request/response, error handling                       │
+└────────────────────────────┬────────────────────────────────┘
+                             │  function call
+                             ▼
+┌─────────────────────────────────────────────────────────────┐
+│  HOOKS (frontend/src/concepts/ or pages/)                    │
+│  useFetchState / custom hooks                                │
+│  Manage loading, error, data states                          │
+└────────────────────────────┬────────────────────────────────┘
+                             │  React state
+                             ▼
+┌─────────────────────────────────────────────────────────────┐
+│  COMPONENT (pages/)                                          │
+│  Renders the data using PatternFly components                │
+└─────────────────────────────────────────────────────────────┘</div>
+
+<h2>2. Layer by layer</h2>
+
+<h3>Layer 1: Kubernetes resource</h3>
+<p>Everything in the dashboard represents a K8s resource. A "project" is really a Namespace with specific labels. A "workbench" is a Notebook CR (Custom Resource). Data lives as YAML objects on the cluster.</p>
+
+<pre><code># A simplified K8s resource (what the cluster stores)
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: my-project
+  labels:
+    opendatahub.io/dashboard: "true"
+  annotations:
+    openshift.io/display-name: "My Data Science Project"</code></pre>
+
+<h3>Layer 2: API function</h3>
+<p>In <code>frontend/src/api/</code>, typed functions call the backend. They handle the HTTP details so the rest of the app doesn't think about network:</p>
+
+<pre><code>// api/k8s/projects.ts (simplified)
+export const getProjects = (): Promise&lt;ProjectKind[]&gt; =>
+  k8sListResource&lt;ProjectKind&gt;({
+    model: ProjectModel,
+    queryOptions: {
+      queryParams: { labelSelector: 'opendatahub.io/dashboard=true' },
+    },
+  });</code></pre>
+
+<p>Key point: this returns a <strong>typed Promise</strong>. The caller knows exactly what shape the data will be.</p>
+
+<h3>Layer 3: React hook</h3>
+<p>Hooks wrap the API call with state management (loading, error, data). This project uses a pattern called <code>useFetchState</code>:</p>
+
+<pre><code>// concepts/projects/useProjects.ts (simplified)
+const useProjects = (): [ProjectKind[], boolean, Error | undefined] => {
+  const fetchProjects = React.useCallback(() => getProjects(), []);
+  return useFetchState&lt;ProjectKind[]&gt;(fetchProjects, []);
+};</code></pre>
+
+<p><code>useFetchState</code> returns a tuple: <code>[data, isLoading, error]</code>. This is the standard pattern across the entire codebase.</p>
+
+<div class="callout callout-info">
+  <strong>The <code>[data, loaded, error]</code> tuple</strong>
+  You'll see this everywhere. It's the project's convention for async data. Every data-fetching hook returns these three values in this order.
+</div>
+
+<h3>Layer 4: Component renders</h3>
+<p>The page component calls the hook and renders based on the state:</p>
+
+<pre><code>// pages/projects/ProjectsPage.tsx (simplified)
+const ProjectsPage: React.FC = () => {
+  const [projects, loaded, error] = useProjects();
+
+  if (error) return &lt;ErrorState error={error} /&gt;;
+  if (!loaded) return &lt;Spinner /&gt;;
+
+  return (
+    &lt;Table data={projects}&gt;
+      {/* table columns and rows */}
+    &lt;/Table&gt;
+  );
+};</code></pre>
+
+<h2>3. The write path (creating/updating)</h2>
+
+<p>When a user fills a form and clicks "Create," the flow reverses:</p>
+
+<div class="diagram">User clicks "Create"
+        │
+        ▼
+Form component calls API function
+        │
+        ▼
+API function POSTs to backend
+        │
+        ▼
+Backend forwards to K8s API with user's token
+        │
+        ▼
+K8s validates + stores the resource
+        │
+        ▼
+Hook re-fetches → UI updates automatically</div>
+
+<pre><code>// The create call (api layer)
+export const createProject = (data: ProjectKind): Promise&lt;ProjectKind&gt; =>
+  k8sCreateResource&lt;ProjectKind&gt;({ model: ProjectModel, resource: data });
+
+// In the form component
+const handleSubmit = async () => {
+  try {
+    await createProject(formData);
+    navigate('/projects');  // success → redirect
+  } catch (e) {
+    setError(e);  // show error in the form
+  }
+};</code></pre>
+
+<h2>4. K8s resource shapes (types)</h2>
+
+<p>Every K8s resource follows the same basic structure. The TypeScript types enforce this:</p>
+
+<pre><code>// The base shape every K8s resource has
+interface K8sResourceCommon {
+  apiVersion: string;
+  kind: string;
+  metadata: {
+    name: string;
+    namespace?: string;
+    labels?: Record&lt;string, string&gt;;
+    annotations?: Record&lt;string, string&gt;;
+    uid?: string;
+    creationTimestamp?: string;
+  };
+}
+
+// A specific resource adds its own spec/status
+interface NotebookKind extends K8sResourceCommon {
+  spec: {
+    template: { /* pod template */ };
+  };
+  status?: {
+    conditions: Condition[];
+  };
+}</code></pre>
+
+<div class="callout callout-warn">
+  <strong>spec vs status</strong>
+  <ul style="margin: 0.5rem 0 0 0; padding-left: 1.2rem;">
+    <li><strong>spec</strong> = what you <em>want</em> (user's desired state)</li>
+    <li><strong>status</strong> = what <em>is</em> (cluster's reported current state)</li>
+  </ul>
+  You write to <code>spec</code>. Kubernetes fills <code>status</code>. The dashboard reads both.
+</div>
+
+<h2>5. Context providers</h2>
+
+<p>Some data is needed by many components deep in the tree. Instead of passing it through every component (prop drilling), this project uses React Context:</p>
+
+<pre><code>// A context provides data to all children
+&lt;ProjectContext.Provider value={{ project, notebooks, pipelines }}&gt;
+  &lt;ProjectDetails /&gt;    {/* can access project data */}
+  &lt;NotebookList /&gt;      {/* can access notebooks */}
+&lt;/ProjectContext.Provider&gt;
+
+// Any child component:
+const { notebooks } = useProjectContext();</code></pre>
+
+<p>Context folders live inside <code>concepts/</code>: e.g., <code>concepts/projects/context/</code>.</p>
+
+<h2>6. Refresh patterns</h2>
+
+<p>The dashboard uses polling to keep data fresh (K8s doesn't push updates to the frontend directly):</p>
+
+<ul>
+  <li><strong>Periodic refresh</strong> — hooks refetch on an interval (e.g., every 30 seconds)</li>
+  <li><strong>Manual refresh</strong> — after a mutation (create/edit/delete), explicitly refetch</li>
+  <li><strong>Navigation refresh</strong> — re-fetch when navigating to a page</li>
+</ul>
+
+<hr>
+
+<h2>Check your understanding</h2>
+
+<div class="quiz" data-answer="c" data-hint="useFetchState returns [data, loaded, error] — the standard async tuple.">
+  <p class="quiz-q">1. What does <code>useFetchState</code> return?</p>
+  <label><input type="radio" name="q1" value="a"> A single Promise that resolves when data is ready</label>
+  <label><input type="radio" name="q1" value="b"> An object with .data, .loading, and .error properties</label>
+  <label><input type="radio" name="q1" value="c"> A tuple: [data, loaded (boolean), error (or undefined)]</label>
+  <label><input type="radio" name="q1" value="d"> A ref object that updates without re-rendering the tree</label>
+  <div class="feedback"></div>
+</div>
+
+<div class="quiz" data-answer="b" data-hint="spec = desired state (what you write). status = actual state (what the cluster reports).">
+  <p class="quiz-q">2. In a K8s resource, what is the difference between <code>spec</code> and <code>status</code>?</p>
+  <label><input type="radio" name="q1" value="a"> spec is for pods, status is for services — different resources</label>
+  <label><input type="radio" name="q2" value="b"> spec is what you want (desired); status is what exists (actual)</label>
+  <label><input type="radio" name="q2" value="c"> spec is read-only metadata; status is the writable section</label>
+  <label><input type="radio" name="q2" value="d"> They are interchangeable aliases used by different K8s versions</label>
+  <div class="feedback"></div>
+</div>
+
+<div class="quiz" data-answer="a" data-hint="Context avoids prop drilling — data shared deep in the tree without passing through every component.">
+  <p class="quiz-q">3. Why does the project use React Context for some data?</p>
+  <label><input type="radio" name="q3" value="a"> To share data with deeply nested components without prop drilling</label>
+  <label><input type="radio" name="q3" value="b"> Because React hooks cannot hold state across multiple renders</label>
+  <label><input type="radio" name="q3" value="c"> To cache API responses and avoid making any network requests</label>
+  <label><input type="radio" name="q3" value="d"> Because TypeScript requires Context for generic type inference</label>
+  <div class="feedback"></div>
+</div>
+
+<hr>
+
+<h2>Key takeaways</h2>
+<ul>
+  <li><strong>Data flows down</strong>: K8s → backend → API function → hook → component</li>
+  <li><strong>Writes go up</strong>: form → API function → backend → K8s → refetch → UI updates</li>
+  <li><strong><code>[data, loaded, error]</code></strong> — the universal return shape for data hooks</li>
+  <li><strong>spec vs status</strong> — you write spec, K8s fills status</li>
+  <li><strong>Context</strong> — for data shared across many components without prop drilling</li>
+  <li><strong>Never call <code>fetch()</code> directly</strong> — use the API layer</li>
+</ul>
+
+<h2>What's next</h2>
+<p>Now you know how data moves. Next, let's look at how to <strong>verify your code works</strong>: writing unit tests with Jest.</p>
+
+<div class="lesson-nav">
+  <a href="0006-frontend-folder-map.html">&larr; Lesson 6: Frontend Folder Map</a>
+  <a href="0008-unit-tests-jest.html">Next: Unit Tests with Jest &rarr;</a>
+</div>
+
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lesson 11: Module Federation</title>
+  <link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+
+<h1>Lesson 11: Module Federation</h1>
+<p><strong>Goal:</strong> Understand how the monorepo's packages (model-registry, gen-ai, etc.) plug into the main dashboard as independent modules at runtime — and why that matters for your daily work.</p>
+
+<hr>
+
+<h2>The one-sentence version</h2>
+<p><strong>Module Federation lets each package (<code>packages/*</code>) be built independently and loaded into the main dashboard at runtime, like plugins that snap into a host app.</strong></p>
+
+<h2>1. Why not just import everything normally?</h2>
+
+<p>In a simple app, all code is bundled together into one giant JavaScript file. But this dashboard is huge and maintained by multiple teams. Module Federation solves:</p>
+
+<table>
+  <thead><tr><th>Problem</th><th>How Module Federation helps</th></tr></thead>
+  <tbody>
+    <tr><td>Teams step on each other</td><td>Each package is independently developed and built</td></tr>
+    <tr><td>Build takes forever</td><td>Only rebuild the package that changed</td></tr>
+    <tr><td>Deploy everything for one change</td><td>Deploy a single package without touching others</td></tr>
+    <tr><td>Hard to add new features</td><td>New packages plug in without modifying the host</td></tr>
+  </tbody>
+</table>
+
+<h2>2. The mental model</h2>
+
+<div class="diagram">┌─────────────────────────────────────────────────────┐
+│  HOST APPLICATION (frontend/)                        │
+│  The main dashboard shell — nav, routes, providers   │
+│                                                      │
+│  Loads at runtime:                                   │
+│  ┌──────────────┐  ┌──────────────┐  ┌───────────┐ │
+│  │ model-registry│  │   gen-ai     │  │   maas    │ │
+│  │ (package)     │  │ (package)    │  │ (package) │ │
+│  └──────────────┘  └──────────────┘  └───────────┘ │
+│                                                      │
+│  Each package exposes components the host renders    │
+└─────────────────────────────────────────────────────┘</div>
+
+<p>Think of it like a browser with extensions — the browser (host) provides the shell, extensions (packages) add features.</p>
+
+<h2>3. Key terms</h2>
+
+<table>
+  <thead><tr><th>Term</th><th>Meaning</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Host</strong></td><td>The main dashboard app (<code>frontend/</code>) that loads other modules</td></tr>
+    <tr><td><strong>Remote</strong></td><td>A package that exposes components to the host (e.g., <code>packages/model-registry</code>)</td></tr>
+    <tr><td><strong>Exposed module</strong></td><td>A specific component or page that a remote makes available</td></tr>
+    <tr><td><strong>Shared dependency</strong></td><td>Libraries both host and remote use (React, PatternFly) — loaded once, shared</td></tr>
+    <tr><td><strong>Webpack config</strong></td><td>Each package has a webpack config defining what it exposes</td></tr>
+  </tbody>
+</table>
+
+<h2>4. How a package plugs in</h2>
+
+<p>Each package under <code>packages/</code> has:</p>
+
+<pre><code>packages/model-registry/
+├── src/
+│   ├── pages/                    ← The pages this package owns
+│   ├── concepts/                 ← Domain logic for this package
+│   └── index.ts                  ← What's "exposed" to the host
+├── webpack.config.ts             ← Module Federation config
+├── package.json
+└── tsconfig.json</code></pre>
+
+<p>The webpack config tells Module Federation: "I expose these components, and I share these libraries with the host."</p>
+
+<h2>5. What this means for your daily work</h2>
+
+<h3>If you're working in <code>frontend/</code> (the host):</h3>
+<ul>
+  <li>You're working on the shell, shared infrastructure, or pages that aren't in a package</li>
+  <li>Changes here affect everyone</li>
+  <li>You run <code>npm run start:dev:ext</code> from <code>frontend/</code></li>
+</ul>
+
+<h3>If you're working in <code>packages/model-registry/</code> (a remote):</h3>
+<ul>
+  <li>You're working on model-registry-specific pages and logic</li>
+  <li>You can develop in isolation (the package has its own dev server)</li>
+  <li>Your code gets loaded into the host at runtime</li>
+</ul>
+
+<h3>Running both together:</h3>
+<pre><code># From repo root — starts the host + all packages
+npm run dev
+
+# Or start a specific package independently
+cd packages/model-registry
+npm run start:dev</code></pre>
+
+<h2>6. Shared dependencies (why version mismatches matter)</h2>
+
+<p>When host and remote both use React, Module Federation shares a single copy. But if versions mismatch:</p>
+
+<ul>
+  <li><strong>React</strong> — must be the same version everywhere (only one React instance allowed)</li>
+  <li><strong>PatternFly</strong> — should be the same to avoid style conflicts</li>
+  <li><strong>Other libs</strong> — can differ if they don't conflict</li>
+</ul>
+
+<div class="callout callout-warn">
+  <strong>Don't add React or PatternFly as a direct dependency in a package</strong>
+  These come from the host as shared dependencies. Packages declare them as <code>peerDependencies</code> so npm doesn't install a second copy.
+</div>
+
+<h2>7. Port allocation</h2>
+
+<p>Each package runs on its own port during development:</p>
+
+<table>
+  <thead><tr><th>Service</th><th>Port</th></tr></thead>
+  <tbody>
+    <tr><td>Frontend (host)</td><td>4010</td></tr>
+    <tr><td>Backend</td><td>4000</td></tr>
+    <tr><td>model-registry</td><td>4101 (example)</td></tr>
+    <tr><td>gen-ai</td><td>4102 (example)</td></tr>
+    <tr><td>maas</td><td>4103 (example)</td></tr>
+  </tbody>
+</table>
+
+<p>The host knows where to find each remote because the ports are configured in the webpack setup.</p>
+
+<h2>8. When you'll encounter Module Federation</h2>
+
+<ul>
+  <li><strong>Adding a new page to a package</strong> — you might need to add an exposed route</li>
+  <li><strong>Importing across package boundaries</strong> — don't import from other packages directly; use the host's shared layer</li>
+  <li><strong>Build errors about "shared module not found"</strong> — usually a missing shared dependency config</li>
+  <li><strong>Creating a new package</strong> — requires a full Module Federation setup (see the module-onboarding skill)</li>
+</ul>
+
+<div class="callout callout-success">
+  <strong>You don't need to configure Module Federation day-to-day</strong>
+  For most frontend work, you just write components in the right folder and they work. MF configuration is set up once per package.
+</div>
+
+<hr>
+
+<h2>Check your understanding</h2>
+
+<div class="quiz" data-answer="b" data-hint="The host loads remotes at runtime — they aren't bundled together at build time.">
+  <p class="quiz-q">1. What does Module Federation allow packages to do?</p>
+  <label><input type="radio" name="q1" value="a"> Share a single git branch so all teams commit together</label>
+  <label><input type="radio" name="q1" value="b"> Be built independently and loaded into the host at runtime</label>
+  <label><input type="radio" name="q1" value="c"> Run backend servers that replace Kubernetes entirely</label>
+  <label><input type="radio" name="q1" value="d"> Generate TypeScript types automatically from YAML files</label>
+  <div class="feedback"></div>
+</div>
+
+<div class="quiz" data-answer="c" data-hint="Shared deps like React must be a single instance — multiple copies break hooks.">
+  <p class="quiz-q">2. Why can't a package add React as a direct dependency?</p>
+  <label><input type="radio" name="q2" value="a"> React license prohibits being listed in more than one package.json</label>
+  <label><input type="radio" name="q2" value="b"> TypeScript cannot compile React if it appears in two locations</label>
+  <label><input type="radio" name="q2" value="c"> It would create two React instances causing hook errors</label>
+  <label><input type="radio" name="q2" value="d"> npm workspaces delete any duplicate dependencies automatically</label>
+  <div class="feedback"></div>
+</div>
+
+<div class="quiz" data-answer="a" data-hint="The host is frontend/ — it provides nav, routes, and loads all package remotes.">
+  <p class="quiz-q">3. In Module Federation terminology, what is the "host"?</p>
+  <label><input type="radio" name="q3" value="a"> The main dashboard app (frontend/) that loads remote packages</label>
+  <label><input type="radio" name="q3" value="b"> The Kubernetes cluster that runs all the containers</label>
+  <label><input type="radio" name="q3" value="c"> The webpack dev server that compiles TypeScript to JS</label>
+  <label><input type="radio" name="q3" value="d"> The GitHub repository where all source code is stored</label>
+  <div class="feedback"></div>
+</div>
+
+<hr>
+
+<h2>Key takeaways</h2>
+<ul>
+  <li><strong>Module Federation</strong> = packages load into the host at runtime (like plugins)</li>
+  <li><strong>Host</strong> = <code>frontend/</code>, <strong>Remotes</strong> = <code>packages/*</code></li>
+  <li><strong>Shared deps</strong> (React, PatternFly) = one copy, used by all</li>
+  <li><strong>Each package has its own port</strong> and can be developed independently</li>
+  <li><strong>Day-to-day</strong>, you mostly just write components — MF is configured once per package</li>
+</ul>
+
+<h2>What's next</h2>
+<p>The final core lesson: <strong>the domain</strong> — what projects, workbenches, pipelines, model serving, and other concepts actually mean in the OpenShift AI world.</p>
+
+<div class="lesson-nav">
+  <a href="0010-opening-a-pr.html">&larr; Lesson 10: Opening a PR</a>
+  <a href="0012-domain-deep-dive.html">Next: Domain Deep-Dive &rarr;</a>
+</div>
+
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

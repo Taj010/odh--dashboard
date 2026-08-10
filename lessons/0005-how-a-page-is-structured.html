@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lesson 5: How a Page Is Structured</title>
+  <link rel="stylesheet" href="../assets/style.css">
+  <style>
+    .anatomy {
+      list-style: none;
+      padding: 0;
+      margin: 1rem 0;
+    }
+    .anatomy li {
+      display: grid;
+      grid-template-columns: 7.5rem 1fr;
+      gap: 0.75rem;
+      padding: 0.7rem 0.9rem;
+      margin: 0.4rem 0;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: white;
+      align-items: start;
+    }
+    .anatomy .layer {
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--accent);
+      padding-top: 0.1rem;
+    }
+    .file-card {
+      border-left: 4px solid var(--accent);
+      background: var(--sidebar);
+      padding: 0.8rem 1rem;
+      margin: 0.6rem 0;
+      border-radius: 0 6px 6px 0;
+    }
+    .file-card code { font-size: 0.85em; }
+    .file-card p { margin: 0.3rem 0 0; font-size: 0.95rem; }
+    .map-table td:first-child { font-family: var(--font-mono); font-size: 0.85rem; white-space: nowrap; }
+  </style>
+</head>
+<body>
+
+<h1>Lesson 5: How a Page Is Structured</h1>
+<p><strong>Goal:</strong> When you open a page folder in this repo, know what each piece does — route, page shell, data hook, and body — so your next edit lands in the right file.</p>
+
+<hr>
+
+<h2>The one-sentence version</h2>
+
+<p><strong>A page is not one file: a route registration points to a folder; that folder fetches data, wraps it in <code>ApplicationsPage</code>, and renders PatternFly UI.</strong></p>
+
+<div class="callout callout-info">
+  <strong>Primary source</strong>
+  Read <a href="../docs/extensibility.md">docs/extensibility.md</a> (how <code>app.route</code> / nav plugins work). Then open the real files listed below — the code is the other primary source.
+</div>
+
+<h2>1. The stack from URL → screen</h2>
+
+<ul class="anatomy">
+  <li>
+    <span class="layer">URL</span>
+    <span>e.g. <code>/settings/environment-setup/connection-types</code></span>
+  </li>
+  <li>
+    <span class="layer">Route plugin</span>
+    <span><code>app.route</code> entry in <code>frontend/src/plugins/extensions/routes.ts</code> — maps path → which component to lazy-load</span>
+  </li>
+  <li>
+    <span class="layer">AppRoutes</span>
+    <span><code>frontend/src/app/AppRoutes.tsx</code> turns those plugins into React Router <code>&lt;Route&gt;</code>s</span>
+  </li>
+  <li>
+    <span class="layer">*Routes.tsx</span>
+    <span>Optional nested routes inside the feature (list / create / edit)</span>
+  </li>
+  <li>
+    <span class="layer">*Page.tsx</span>
+    <span>The page: fetch data → <code>ApplicationsPage</code> → body</span>
+  </li>
+  <li>
+    <span class="layer">Sidebar</span>
+    <span>Separate! Nav labels come from <code>navigation.ts</code>, not from the page file</span>
+  </li>
+</ul>
+
+<div class="diagram">Browser URL
+    │
+    ▼
+plugins/extensions/routes.ts   ← "this path loads that component"
+    │
+    ▼
+app/AppRoutes.tsx               ← builds &lt;Route&gt; list from plugins
+    │
+    ▼
+pages/.../SomethingRoutes.tsx   ← nested paths (optional)
+    │
+    ▼
+pages/.../SomethingPage.tsx     ← ApplicationsPage + table/form
+    │
+    ▼
+What you see in the browser</div>
+
+<p>Important: this is <strong>not</strong> a giant hardcoded route list in <code>App.tsx</code>. Routes are <a href="../reference/glossary.html">extensions</a> — small declarations the app collects at runtime. Full deep-dive later; for now you only need: <em>to find a page, search the path in <code>routes.ts</code>.</em></p>
+
+<h2>2. Walk one real page: Connection types</h2>
+
+<p>We'll use <strong>Connection types</strong> — a readable settings page under <code>frontend/src/pages/connectionTypes/</code>.</p>
+
+<div class="file-card">
+  <strong>1. Find the route</strong>
+  <code>frontend/src/plugins/extensions/routes.ts</code>
+  <p>Search for <code>connection-types</code>. You'll see <code>type: 'app.route'</code>, a <code>path</code>, and a <code>component: () =&gt; import('...ConnectionTypeRoutes')</code>. That's the bridge from URL → folder.</p>
+</div>
+
+<div class="file-card">
+  <strong>2. Nested routes</strong>
+  <code>frontend/src/pages/connectionTypes/ConnectionTypeRoutes.tsx</code>
+  <p>List at <code>/</code>, plus <code>create</code>, <code>edit/:name</code>, <code>duplicate/:name</code>. Same pattern many features use.</p>
+</div>
+
+<div class="file-card">
+  <strong>3. The page itself (~30 lines)</strong>
+  <code>frontend/src/pages/connectionTypes/ConnectionTypesPage.tsx</code>
+  <p>This is the pattern to memorize:</p>
+</div>
+
+<pre><code>const ConnectionTypesPage: React.FC = () =&gt; {
+  const [connectionTypes, loaded, loadError, refresh] =
+    useWatchConnectionTypes();
+
+  return (
+    &lt;ApplicationsPage
+      loaded={loaded}
+      loadError={loadError}
+      empty={loaded &amp;&amp; !connectionTypes.length}
+      emptyStatePage={&lt;EmptyConnectionTypes /&gt;}
+      title={...}
+      description="..."
+    &gt;
+      &lt;PageSection isFilled&gt;
+        &lt;ConnectionTypesTable ... onUpdate={refresh} /&gt;
+      &lt;/PageSection&gt;
+    &lt;/ApplicationsPage&gt;
+  );
+};</code></pre>
+
+<table class="map-table">
+  <thead>
+    <tr><th>Piece</th><th>Job</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>useWatchConnectionTypes()</code></td><td>Data hook — returns list + loading + error + refresh</td></tr>
+    <tr><td><code>ApplicationsPage</code></td><td>Shared shell — title, description, spinner, error, empty</td></tr>
+    <tr><td><code>PageSection</code></td><td>PatternFly layout region for the body</td></tr>
+    <tr><td><code>ConnectionTypesTable</code></td><td>The actual UI once data exists</td></tr>
+    <tr><td><code>EmptyConnectionTypes</code></td><td>What to show when the list is empty</td></tr>
+  </tbody>
+</table>
+
+<div class="file-card">
+  <strong>4. Shared shell</strong>
+  <code>packages/ui-core/src/components/ApplicationsPage.tsx</code>
+  <p>Almost every dashboard page uses this. You pass <code>loaded</code> / <code>empty</code> / <code>loadError</code>; it decides whether to show a spinner, error empty-state, custom empty page, or your children.</p>
+</div>
+
+<div class="file-card">
+  <strong>5. Sidebar label (separate file!)</strong>
+  <code>frontend/src/plugins/extensions/navigation.ts</code>
+  <p>Search <code>settings-connection-types</code>. The <code>title</code> and <code>href</code> here are what appear in the left nav — changing the page title in <code>ApplicationsPage</code> does <em>not</em> change the sidebar.</p>
+</div>
+
+<h2>3. Folder anatomy (what lives where)</h2>
+
+<p>Inside a typical <code>pages/&lt;feature&gt;/</code> folder:</p>
+
+<table>
+  <thead>
+    <tr><th>File pattern</th><th>Purpose</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>*Routes.tsx</code></td><td>Nested React Router routes for the feature</td></tr>
+    <tr><td><code>*Page.tsx</code></td><td>Top-level screen: hook + <code>ApplicationsPage</code></td></tr>
+    <tr><td><code>*Table.tsx</code> / components</td><td>Body UI pieces</td></tr>
+    <tr><td><code>Empty*.tsx</code></td><td>Empty-state UI</td></tr>
+    <tr><td><code>*Modal.tsx</code></td><td>Dialogs for create/delete/edit actions</td></tr>
+    <tr><td><code>utils.ts</code>, <code>const.ts</code>, <code>columns.ts</code></td><td>Helpers, constants, table column defs</td></tr>
+    <tr><td><code>manage/</code></td><td>Create/edit sub-pages (when the flow is bigger)</td></tr>
+  </tbody>
+</table>
+
+<div class="callout callout-warn">
+  <strong>Where does data fetching live?</strong>
+  Often in a <code>useWatch*</code> or <code>use*</code> hook under <code>utilities/</code>, <code>concepts/</code>, or a package — <em>not</em> as raw <code>fetch</code> inside the page. The page calls the hook and wires the tuple into <code>ApplicationsPage</code>. You'll meet <code>useFetch</code> / <code>useFetchState</code> in a later lesson; for now: <strong>page asks a hook, hook talks to the API</strong>.
+</div>
+
+<h2>4. Skill practice — open and map</h2>
+
+<p>Do this in your editor (no need for the app to be running):</p>
+
+<ol>
+  <li>Open <code>ConnectionTypesPage.tsx</code> — find the hook call and the four props <code>loaded</code>, <code>loadError</code>, <code>empty</code>, <code>emptyStatePage</code>.</li>
+  <li>Cmd/Ctrl+click <code>ApplicationsPage</code> — skim how it chooses spinner vs children.</li>
+  <li>In <code>routes.ts</code>, search <code>connection-types</code> — confirm the path matches the URL pattern.</li>
+  <li>In <code>navigation.ts</code>, search the same — note <code>title</code> vs the page's <code>TitleWithIcon</code> title.</li>
+  <li><strong>Bonus:</strong> open <code>frontend/src/pages/groupSettings/GroupSettings.tsx</code> — even flatter (almost no nested routes). Same <code>ApplicationsPage</code> idea.</li>
+</ol>
+
+<div class="callout callout-success">
+  <strong>Win for this lesson</strong>
+  You can point at any <code>*Page.tsx</code> and say: “hook → ApplicationsPage → body,” and you know to look in <code>routes.ts</code> / <code>navigation.ts</code> for URL and sidebar.
+</div>
+
+<hr>
+
+<h2>Check your understanding</h2>
+
+<div class="quiz" data-answer="c" data-hint="AppRoutes reads app.route extensions; the declarations live in routes.ts.">
+  <p class="quiz-q">1. Where do you look first to find which file a URL loads?</p>
+  <label><input type="radio" name="q1" value="a"> Only inside package.json scripts that start the webpack server</label>
+  <label><input type="radio" name="q1" value="b"> Only inside style.css tokens that theme PatternFly buttons</label>
+  <label><input type="radio" name="q1" value="c"> In plugins/extensions/routes.ts for the matching app.route</label>
+  <label><input type="radio" name="q1" value="d"> In docs/dev-setup.md under the Node version requirements</label>
+  <div class="feedback"></div>
+</div>
+
+<div class="quiz" data-answer="b" data-hint="ApplicationsPage is the shared shell for title, loading, error, and empty.">
+  <p class="quiz-q">2. What does <code>ApplicationsPage</code> mainly provide?</p>
+  <label><input type="radio" name="q2" value="a"> Cluster login via oc and the OpenShift API token refresh</label>
+  <label><input type="radio" name="q2" value="b"> Shared page chrome: title, loading, error, and empty states</label>
+  <label><input type="radio" name="q2" value="c"> Database migrations for every backend Express route handler</label>
+  <label><input type="radio" name="q2" value="d"> Cypress selectors generated automatically from every table row</label>
+  <div class="feedback"></div>
+</div>
+
+<div class="quiz" data-answer="a" data-hint="Sidebar entries are registered separately in navigation.ts.">
+  <p class="quiz-q">3. You change the title prop on ApplicationsPage. Does the sidebar update?</p>
+  <label><input type="radio" name="q3" value="a"> No — sidebar titles come from navigation.ts extensions instead</label>
+  <label><input type="radio" name="q3" value="b"> Yes — sidebar titles always mirror ApplicationsPage title props</label>
+  <label><input type="radio" name="q3" value="c"> Yes — webpack rewrites navigation.ts from every Page title string</label>
+  <label><input type="radio" name="q3" value="d"> No — sidebar titles come only from the oc project name field</label>
+  <div class="feedback"></div>
+</div>
+
+<div class="quiz" data-answer="d" data-hint="The page calls a hook; the hook owns talking to the API.">
+  <p class="quiz-q">4. In ConnectionTypesPage, who talks to the API?</p>
+  <label><input type="radio" name="q4" value="a"> A raw fetch call written inline inside the JSX return block</label>
+  <label><input type="radio" name="q4" value="b"> The PageSection component which loads Kubernetes by itself</label>
+  <label><input type="radio" name="q4" value="c"> The glossary HTML file which documents every network request</label>
+  <label><input type="radio" name="q4" value="d"> The useWatchConnectionTypes hook called at the top</label>
+  <div class="feedback"></div>
+</div>
+
+<div class="quiz" data-answer="b" data-hint="*Routes.tsx holds nested React Router paths for one feature.">
+  <p class="quiz-q">5. What is <code>ConnectionTypeRoutes.tsx</code> for?</p>
+  <label><input type="radio" name="q5" value="a"> Global CSS overrides for every PatternFly button variant used</label>
+  <label><input type="radio" name="q5" value="b"> Nested routes for list, create, edit, and duplicate screens</label>
+  <label><input type="radio" name="q5" value="c"> Backend Express handlers that proxy every Kubernetes list call</label>
+  <label><input type="radio" name="q5" value="d"> Jest setup files that mock the entire plugin extension store</label>
+  <div class="feedback"></div>
+</div>
+
+<hr>
+
+<h2>Recommended reading</h2>
+<p>Primary: <a href="../docs/extensibility.md">docs/extensibility.md</a> — especially the parts about <code>app.route</code> and code references. Then read the five files in the practice list above, in order.</p>
+
+<p>Keep <a href="../reference/glossary.html">the glossary</a> open while you read — new terms from this lesson are there.</p>
+
+<h2>Key takeaways</h2>
+<ul>
+  <li><strong>URL → <code>routes.ts</code> → page folder</strong> — start there when hunting a screen</li>
+  <li><strong>Page pattern:</strong> hook → <code>ApplicationsPage</code> → PatternFly body</li>
+  <li><strong>Nav is separate:</strong> <code>navigation.ts</code> owns sidebar labels/hrefs</li>
+  <li><strong>Don't put API calls in JSX</strong> — call a <code>use*</code> hook</li>
+  <li><strong>Extensions, not a mega App.tsx route table</strong> — plugins register routes</li>
+</ul>
+
+<h2>What's next</h2>
+<p>Next we'll look at <strong>how data hooks work</strong> (<code>useFetch</code> / loading-error tuples) — the missing half of “hook → ApplicationsPage.” Or we can do a guided mini-edit on a real page if your dev server is up.</p>
+
+<div class="footer-reminder">
+  Questions? Open any of the files above and ask about a line that doesn't make sense — paste the snippet and I'll walk through it. Still stuck on cluster login from Lesson 4? Ask about that too.
+</div>
+
+<div class="lesson-nav">
+  <a href="0004-running-the-dev-server.html">&larr; Lesson 4: Dev Server</a>
+  <a href="../reference/glossary.html">Glossary</a>
+</div>
+
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

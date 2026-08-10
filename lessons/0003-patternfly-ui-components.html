@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lesson 3: PatternFly — The UI Component Library</title>
+  <link rel="stylesheet" href="../assets/style.css">
+  <style>
+    .pf-demo {
+      border: 2px solid var(--border);
+      border-radius: 8px;
+      padding: 1.2rem;
+      margin: 1rem 0;
+      background: white;
+    }
+    .pf-demo-label {
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #666;
+      margin-bottom: 0.5rem;
+    }
+    .rule-box {
+      display: grid;
+      grid-template-columns: 2.5rem 1fr;
+      gap: 0.5rem;
+      align-items: start;
+      margin: 0.5rem 0;
+      padding: 0.6rem 0.8rem;
+      border-radius: 6px;
+      background: var(--sidebar);
+    }
+    .rule-box .num {
+      font-weight: 800;
+      font-size: 1.1rem;
+      color: var(--accent);
+    }
+    .decision-table { font-size: 0.9rem; }
+    .decision-table td:first-child { font-weight: 600; }
+  </style>
+</head>
+<body>
+
+<h1>Lesson 3: PatternFly — The UI Component Library</h1>
+<p><strong>Goal:</strong> Understand what PatternFly is, how to use it in this codebase, and the rules that govern when to use PF components vs writing custom code.</p>
+
+<hr>
+
+<h2>The one-sentence version</h2>
+
+<p><strong>PatternFly is a library of pre-built React components (buttons, tables, modals, layouts) made by Red Hat — and this entire dashboard is built from them.</strong></p>
+
+<p>Instead of writing <code>&lt;button className="my-button"&gt;</code> and styling it from scratch, you import <code>&lt;Button&gt;</code> from PatternFly and it comes with:</p>
+<ul>
+  <li>Consistent visual design (colors, spacing, sizing)</li>
+  <li>Accessibility built in (screen readers, keyboard navigation)</li>
+  <li>Dark mode support (via design tokens)</li>
+  <li>Responsive behavior</li>
+</ul>
+
+<div class="callout callout-info">
+  <strong>Primary source</strong>
+  The <a href="https://www.patternfly.org/">PatternFly v6 documentation site</a> is where you look up components, copy code examples, and read design guidelines. Bookmark it — you'll use it constantly.
+</div>
+
+<h2>1. Why PatternFly specifically?</h2>
+
+<p>PatternFly is Red Hat's open-source design system. Since this dashboard is a Red Hat product (RHOAI / OpenShift AI), using PatternFly means:</p>
+
+<ul>
+  <li><strong>Consistency</strong> — every Red Hat product looks and feels the same to users</li>
+  <li><strong>No design debates</strong> — spacing, colors, and interaction patterns are already decided</li>
+  <li><strong>Accessibility for free</strong> — PF components follow WCAG guidelines out of the box</li>
+  <li><strong>Less CSS to write</strong> — the component handles its own styling</li>
+</ul>
+
+<p>This project uses <strong>PatternFly v6</strong> (version <code>6.4.1</code>). All class names, tokens, and component APIs target v6. If you find examples online for v4 or v5, they might not work here.</p>
+
+<h2>2. The three PF packages you'll see</h2>
+
+<table>
+  <thead><tr><th>Package</th><th>What it provides</th><th>Example imports</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><code>@patternfly/react-core</code></td>
+      <td>All main components: Button, Modal, Alert, Flex, Stack, TextInput, etc.</td>
+      <td><code>import { Button, Modal } from '@patternfly/react-core'</code></td>
+    </tr>
+    <tr>
+      <td><code>@patternfly/react-table</code></td>
+      <td>Table-specific components: Table, Thead, Tbody, Tr, Th, Td</td>
+      <td><code>import { Table, Thead, Tr, Th } from '@patternfly/react-table'</code></td>
+    </tr>
+    <tr>
+      <td><code>@patternfly/react-icons</code></td>
+      <td>Hundreds of icons as React components</td>
+      <td><code>import { SearchIcon } from '@patternfly/react-icons'</code></td>
+    </tr>
+  </tbody>
+</table>
+
+<p>That's it. Three imports cover 95% of what you'll need.</p>
+
+<h2>3. What a PF component looks like in this codebase</h2>
+
+<p>Here's a real component from the repo — a delete confirmation modal. Notice how almost every element is a PatternFly component:</p>
+
+<pre><code>// frontend/src/pages/projects/components/DeleteModal.tsx (simplified)
+
+import {
+  Alert,
+  Button,
+  Flex,
+  FlexItem,
+  Stack,
+  StackItem,
+  TextInput,
+  Modal,
+  ModalBody,
+  ModalHeader,
+  ModalFooter,
+} from '@patternfly/react-core';
+
+const DeleteModal: React.FC&lt;DeleteModalProps&gt; = ({ title, onClose, onDelete, deleteName }) =&gt; (
+  &lt;Modal isOpen onClose={onClose} variant="small"&gt;
+    &lt;ModalHeader title={title} titleIconVariant="warning" /&gt;
+    &lt;ModalBody&gt;
+      &lt;Stack hasGutter&gt;
+        &lt;StackItem&gt;Type the name to confirm:&lt;/StackItem&gt;
+        &lt;StackItem&gt;
+          &lt;TextInput id="confirm" onChange={(e, val) =&gt; setValue(val)} /&gt;
+        &lt;/StackItem&gt;
+      &lt;/Stack&gt;
+    &lt;/ModalBody&gt;
+    &lt;ModalFooter&gt;
+      &lt;Button variant="danger" onClick={onDelete}&gt;Delete&lt;/Button&gt;
+      &lt;Button variant="link" onClick={onClose}&gt;Cancel&lt;/Button&gt;
+    &lt;/ModalFooter&gt;
+  &lt;/Modal&gt;
+);</code></pre>
+
+<p>Count the PatternFly components: <code>Modal</code>, <code>ModalHeader</code>, <code>ModalBody</code>, <code>ModalFooter</code>, <code>Stack</code>, <code>StackItem</code>, <code>TextInput</code>, <code>Button</code> (×2). <strong>Zero custom CSS needed.</strong></p>
+
+<h2>4. The most common PF components in this codebase</h2>
+
+<p>Here's what you'll encounter the most, grouped by what they do:</p>
+
+<h3>Layout (arranging things on the page)</h3>
+<table>
+  <thead><tr><th>Component</th><th>What it does</th><th>Use when</th></tr></thead>
+  <tbody>
+    <tr><td><code>Stack / StackItem</code></td><td>Vertical arrangement with gaps</td><td>Stacking form sections, content blocks</td></tr>
+    <tr><td><code>Flex / FlexItem</code></td><td>Horizontal/vertical flex layout</td><td>Aligning items side by side</td></tr>
+    <tr><td><code>Split / SplitItem</code></td><td>Two-column left/right split</td><td>Title on left, action on right</td></tr>
+    <tr><td><code>Grid / GridItem</code></td><td>CSS grid with column spans</td><td>Multi-column responsive layouts</td></tr>
+    <tr><td><code>Gallery / GalleryItem</code></td><td>Auto-flowing card grid</td><td>Card layouts with equal sizing</td></tr>
+  </tbody>
+</table>
+
+<h3>Content &amp; feedback</h3>
+<table>
+  <thead><tr><th>Component</th><th>What it does</th></tr></thead>
+  <tbody>
+    <tr><td><code>Button</code></td><td>Buttons with variants: primary, secondary, danger, link</td></tr>
+    <tr><td><code>Alert</code></td><td>Colored message banners (success, warning, danger, info)</td></tr>
+    <tr><td><code>Modal / ModalHeader / ModalBody / ModalFooter</code></td><td>Pop-up dialogs</td></tr>
+    <tr><td><code>EmptyState</code></td><td>"Nothing here yet" placeholder with icon and action</td></tr>
+    <tr><td><code>Spinner</code></td><td>Loading indicator</td></tr>
+    <tr><td><code>Label</code></td><td>Small colored tag/badge</td></tr>
+    <tr><td><code>Tooltip / Popover</code></td><td>Hover/click info bubbles</td></tr>
+  </tbody>
+</table>
+
+<h3>Forms</h3>
+<table>
+  <thead><tr><th>Component</th><th>What it does</th></tr></thead>
+  <tbody>
+    <tr><td><code>TextInput</code></td><td>Single-line text field</td></tr>
+    <tr><td><code>TextArea</code></td><td>Multi-line text field</td></tr>
+    <tr><td><code>Select / SelectOption</code></td><td>Dropdown picker</td></tr>
+    <tr><td><code>Checkbox / Radio</code></td><td>Toggle options</td></tr>
+    <tr><td><code>FormGroup</code></td><td>Wraps a field with a label and helper text</td></tr>
+    <tr><td><code>Form</code></td><td>Wrapper for a group of FormGroups</td></tr>
+  </tbody>
+</table>
+
+<h3>Data display</h3>
+<table>
+  <thead><tr><th>Component</th><th>What it does</th></tr></thead>
+  <tbody>
+    <tr><td><code>Table / Thead / Tbody / Tr / Th / Td</code></td><td>Data tables (composable API)</td></tr>
+    <tr><td><code>DescriptionList</code></td><td>Key-value display (like a detail panel)</td></tr>
+    <tr><td><code>Card / CardBody / CardTitle</code></td><td>Content containers</td></tr>
+  </tbody>
+</table>
+
+<div class="callout callout-success">
+  <strong>You don't need to memorize these</strong>
+  When you need a UI element, go to <a href="https://www.patternfly.org/">patternfly.org</a> and search for what you need. Every component has live examples you can copy.
+</div>
+
+<h2>5. The rules — how to use PatternFly in this project</h2>
+
+<p>This is the most important part of this lesson. This project has strict rules about styling to keep the codebase consistent and maintainable.</p>
+
+<h3>The priority order (memorize this)</h3>
+
+<p>When you need to make something look a certain way, <strong>always try these in order</strong>:</p>
+
+<div class="rule-box"><span class="num">1</span><span><strong>PatternFly component props</strong> — Always the default. Use the component's built-in props to get the appearance you want. Example: <code>&lt;Button variant="danger"&gt;</code> instead of adding a red CSS class.</span></div>
+<div class="rule-box"><span class="num">2</span><span><strong>PF layout components</strong> — Use <code>Flex</code>, <code>Stack</code>, <code>Grid</code>, <code>Split</code>, <code>Gallery</code> for arranging things. Don't write <code>display: flex</code> yourself.</span></div>
+<div class="rule-box"><span class="num">3</span><span><strong>PF utility classes</strong> — Classes like <code>pf-v6-u-mb-lg</code> (margin-bottom large). Only if props and layout components can't do it.</span></div>
+<div class="rule-box"><span class="num">4</span><span><strong>SCSS with PF tokens</strong> — Custom CSS as a last resort. Must use PF's design token variables (e.g., <code>var(--pf-t--global--spacer--md)</code>), never hardcoded values like <code>16px</code> or <code>#333</code>.</span></div>
+
+<div class="callout callout-danger">
+  <strong>What you must NEVER do</strong>
+  <ul style="margin: 0.5rem 0 0 0; padding-left: 1.2rem;">
+    <li>Write <code>style={{ padding: '16px' }}</code> — inline styles are banned</li>
+    <li>Hardcode colors like <code>color: #c9190b</code> — use tokens</li>
+    <li>Write custom <code>display: flex</code> — use the <code>Flex</code> component</li>
+    <li>Write <code>@media</code> queries — PF components handle responsiveness through their own breakpoint props</li>
+  </ul>
+</div>
+
+<h3>Design tokens — PF's variable system</h3>
+
+<p>"Design tokens" are CSS variables that PatternFly defines. They're the <em>single source of truth</em> for every color, spacing value, and font size. Here's why they matter:</p>
+
+<pre><code>/* ❌ Hardcoded — breaks in dark mode, inconsistent */
+.my-thing {
+  padding: 16px;
+  color: #333;
+  border: 1px solid #d0d7de;
+}
+
+/* ✅ PF tokens — adapts to dark mode, always consistent */
+.my-thing {
+  padding: var(--pf-t--global--spacer--md);
+  color: var(--pf-t--global--text--color--regular);
+  border: 1px solid var(--pf-t--global--border--color--default);
+}</code></pre>
+
+<p>The <code>--pf-t--</code> prefix means "PatternFly token." When the app switches to dark mode, these variables automatically change value. Hardcoded values don't.</p>
+
+<h3>Custom class naming</h3>
+
+<p>When you do need a custom class (which should be rare), this project uses a BEM-like convention:</p>
+
+<table>
+  <thead><tr><th>Type</th><th>Pattern</th><th>Example</th></tr></thead>
+  <tbody>
+    <tr><td>Block</td><td><code>odh-{name}</code></td><td><code>odh-card</code></td></tr>
+    <tr><td>Element</td><td><code>odh-{block}__{element}</code></td><td><code>odh-card__footer</code></td></tr>
+    <tr><td>Modifier</td><td><code>m-{modifier}</code></td><td><code>m-disabled</code></td></tr>
+  </tbody>
+</table>
+
+<h2>6. How to find the right PF component</h2>
+
+<p>Your workflow when building UI:</p>
+
+<ol>
+  <li><strong>Think about what you need</strong> — "I need a dropdown" or "I need a warning banner"</li>
+  <li><strong>Search <a href="https://www.patternfly.org/">patternfly.org</a></strong> — type your need in the search bar</li>
+  <li><strong>Read the examples</strong> — every component page has live, copyable code examples</li>
+  <li><strong>Check if this project has a wrapper</strong> — some PF components have project-specific wrappers (see below)</li>
+  <li><strong>Use it</strong> — import from <code>@patternfly/react-core</code> and use the props from the docs</li>
+</ol>
+
+<h3>Project wrappers to know about</h3>
+
+<p>Sometimes this project wraps a PF component to add extra behavior. Always use the wrapper if one exists:</p>
+
+<table>
+  <thead><tr><th>Use this</th><th>Instead of</th><th>Why</th></tr></thead>
+  <tbody>
+    <tr><td><code>DashboardModalFooter</code></td><td>Manual modal footer buttons</td><td>Standard submit/cancel with loading state</td></tr>
+    <tr><td><code>Table</code> / <code>TableBase</code> (from <code>components/table/</code>)</td><td>Raw PF Table</td><td>Adds pagination and sorting</td></tr>
+    <tr><td><code>DeleteModal</code></td><td>Custom delete confirmation</td><td>Standard type-to-confirm pattern</td></tr>
+    <tr><td><code>DashboardEmptyTableView</code></td><td>Manual empty states in tables</td><td>Consistent "no data" experience</td></tr>
+  </tbody>
+</table>
+
+<h2>7. Upstream vs. local — when to fix PatternFly itself</h2>
+
+<p>This is a judgment call you'll need to make. Here's the decision framework:</p>
+
+<table class="decision-table">
+  <thead><tr><th>Situation</th><th>Action</th></tr></thead>
+  <tbody>
+    <tr>
+      <td>A PF component does <em>almost</em> what you need but is missing a prop or behavior</td>
+      <td><strong>File an issue upstream</strong> at <a href="https://github.com/patternfly/patternfly-react/issues">patternfly-react</a>. Add a local workaround with a <code>// TODO:</code> comment linking the issue.</td>
+    </tr>
+    <tr>
+      <td>A PF component has a visual bug (wrong spacing, broken alignment)</td>
+      <td><strong>File upstream + local CSS override</strong> using PF component variables. Add a <code>// FIXME:</code> comment with the issue link.</td>
+    </tr>
+    <tr>
+      <td>You need domain-specific behavior (e.g., "auto-refresh pipeline status")</td>
+      <td><strong>Build locally</strong> using PF primitives. This isn't PF's job.</td>
+    </tr>
+    <tr>
+      <td>A component works fine but you want it to look slightly different</td>
+      <td><strong>Don't override</strong> — PF's visual choices are intentional. Match the design system.</td>
+    </tr>
+    <tr>
+      <td>PF v6 removed or changed an API you were using</td>
+      <td><strong>Migrate locally</strong> — PF publishes migration guides (codemods). Follow them.</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="callout callout-warn">
+  <strong>The "TODO" pattern for PF bugs</strong>
+  When you work around a PF bug, always leave a comment so the workaround can be removed later:
+  <pre style="margin-top: 0.5rem;"><code>// TODO: Remove when PF bug is fixed.
+// See https://github.com/patternfly/patternfly-react/issues/XXXX
+.pf-v6-c-drawer__body {
+  min-height: 0;
+}</code></pre>
+</div>
+
+<h2>8. Keeping up with PatternFly</h2>
+
+<p>As a contributor to this project, here's what you need to know about staying current:</p>
+
+<h3>What the <em>project</em> handles (not your problem day-to-day)</h3>
+<ul>
+  <li><strong>Version upgrades</strong> — the team bumps PF versions periodically. The package.json pins the version.</li>
+  <li><strong>Major migrations</strong> (v5 → v6) — these are coordinated efforts with codemods. You'll see dedicated PRs.</li>
+  <li><strong>Breaking changes</strong> — PF publishes release notes. The team reviews them before upgrading.</li>
+</ul>
+
+<h3>What you should be aware of</h3>
+<ul>
+  <li><strong>Use v6 patterns only</strong> — if you find a Stack Overflow answer using <code>pf-v5-*</code> classes, don't copy it. Check the <a href="https://www.patternfly.org/">v6 docs</a> for the current API.</li>
+  <li><strong>PF components can change between minor versions</strong> — a prop might get deprecated. If you see a TS warning about a deprecated prop, follow the deprecation message to the replacement.</li>
+  <li><strong>Read the component docs before using</strong> — don't guess the API. The docs show you exact prop names and valid values.</li>
+</ul>
+
+<h3>Where to look things up</h3>
+<table>
+  <thead><tr><th>Need</th><th>Resource</th></tr></thead>
+  <tbody>
+    <tr><td>Component API / examples</td><td><a href="https://www.patternfly.org/">patternfly.org</a> (search bar)</td></tr>
+    <tr><td>Design tokens list</td><td><a href="https://www.patternfly.org/tokens/all-patternfly-tokens">All PatternFly tokens</a></td></tr>
+    <tr><td>Icons gallery</td><td><a href="https://www.patternfly.org/design-foundations/icons">PatternFly Icons</a></td></tr>
+    <tr><td>File a bug / feature request</td><td><a href="https://github.com/patternfly/patternfly-react/issues">patternfly-react GitHub</a></td></tr>
+    <tr><td>Migration guides</td><td><a href="https://github.com/patternfly/patternfly-react/wiki">patternfly-react wiki</a></td></tr>
+  </tbody>
+</table>
+
+<h2>9. Reading a real component with fresh eyes</h2>
+
+<p>Let's look at <code>ExternalLink.tsx</code> again — now that you know PatternFly:</p>
+
+<pre><code>import { Button } from '@patternfly/react-core';
+import { ExternalLinkAltIcon } from '@patternfly/react-icons';
+
+const ExternalLink: React.FC&lt;ExternalLinkProps&gt; = ({ text, to }) =&gt; (
+  &lt;Button
+    variant="link"          // ← PF prop: renders as a link-styled button
+    isInline               // ← PF prop: no extra padding, sits inline with text
+    component="a"          // ← PF prop: renders as an &lt;a&gt; tag, not &lt;button&gt;
+    href={to}
+    target="_blank"
+    rel="noopener noreferrer"
+    icon={&lt;ExternalLinkAltIcon /&gt;}   // ← PF icon component
+    iconPosition="end"     // ← PF prop: icon goes after the text
+  &gt;
+    {text}
+  &lt;/Button&gt;
+);</code></pre>
+
+<p>Key observations:</p>
+<ul>
+  <li><strong>Zero custom CSS</strong> — everything is controlled by PF props</li>
+  <li><code>variant="link"</code> — instead of styling a button to look like a link, you tell PF what variant you want</li>
+  <li><code>component="a"</code> — PF lets you swap the underlying HTML element while keeping the same styling</li>
+  <li>The icon is a <strong>React component</strong> from <code>@patternfly/react-icons</code>, not an <code>&lt;img&gt;</code> or inline SVG</li>
+</ul>
+
+<hr>
+
+<h2>Check your understanding</h2>
+
+<div class="quiz" data-answer="b" data-hint="PF component props are always the first choice. Custom CSS is a last resort.">
+  <p class="quiz-q">1. You need a button with red styling to indicate a destructive action. What do you do?</p>
+  <label><input type="radio" name="q1" value="a"> Write a custom CSS class with a red background color value</label>
+  <label><input type="radio" name="q1" value="b"> Use the PF Button component with the variant="danger" prop</label>
+  <label><input type="radio" name="q1" value="c"> Use an inline style attribute with color set to the red hex</label>
+  <label><input type="radio" name="q1" value="d"> Create a new SCSS file and use the PF danger color token</label>
+  <div class="feedback"></div>
+</div>
+
+<div class="quiz" data-answer="c" data-hint="Stack stacks vertically, Flex arranges horizontally. These are PF layout components.">
+  <p class="quiz-q">2. You need to arrange three elements vertically with gaps between them. Which approach fits the project's priority order?</p>
+  <label><input type="radio" name="q2" value="a"> Write custom CSS with display flex and flex-direction column</label>
+  <label><input type="radio" name="q2" value="b"> Use a PF utility class like pf-v6-u-display-flex on a div</label>
+  <label><input type="radio" name="q2" value="c"> Use the PF Stack component with the hasGutter prop for spacing</label>
+  <label><input type="radio" name="q2" value="d"> Use inline styles with flexDirection column and gap of 16px</label>
+  <div class="feedback"></div>
+</div>
+
+<div class="quiz" data-answer="a" data-hint="PF tokens are CSS variables that adapt to dark mode. Hardcoded values break theme switching.">
+  <p class="quiz-q">3. Why must you use <code>var(--pf-t--global--spacer--md)</code> instead of <code>16px</code> in SCSS?</p>
+  <label><input type="radio" name="q3" value="a"> Tokens adapt to dark mode and stay consistent across the system</label>
+  <label><input type="radio" name="q3" value="b"> Pixels are not supported in modern browsers and cause errors</label>
+  <label><input type="radio" name="q3" value="c"> The linter requires all numbers to be wrapped in var functions</label>
+  <label><input type="radio" name="q3" value="d"> PatternFly tokens render faster than hardcoded pixel values do</label>
+  <div class="feedback"></div>
+</div>
+
+<div class="quiz" data-answer="d" data-hint="PF bugs get filed upstream with a local workaround. Domain-specific behavior is built locally.">
+  <p class="quiz-q">4. A PF Modal has a spacing bug. What's the correct approach in this project?</p>
+  <label><input type="radio" name="q4" value="a"> Rewrite the Modal component from scratch without PatternFly code</label>
+  <label><input type="radio" name="q4" value="b"> Add an important override in a global stylesheet to fix the gap</label>
+  <label><input type="radio" name="q4" value="c"> Ignore the bug and wait for PF to release a fix in a new version</label>
+  <label><input type="radio" name="q4" value="d"> File an issue upstream and add a local override with a TODO comment</label>
+  <div class="feedback"></div>
+</div>
+
+<div class="quiz" data-answer="b" data-hint="The project has wrappers that add features. Check for them before using raw PF components.">
+  <p class="quiz-q">5. You need a data table with pagination and sorting. What should you reach for first?</p>
+  <label><input type="radio" name="q5" value="a"> Import Table from patternfly/react-table and add pagination code</label>
+  <label><input type="radio" name="q5" value="b"> Use the project's Table or TableBase wrapper from components/table</label>
+  <label><input type="radio" name="q5" value="c"> Write a custom table component using basic HTML table elements</label>
+  <label><input type="radio" name="q5" value="d"> Install a third-party table library like react-table or AG Grid</label>
+  <div class="feedback"></div>
+</div>
+
+<hr>
+
+<h2>Recommended reading</h2>
+
+<p>The best next step is to <strong>browse <a href="https://www.patternfly.org/">patternfly.org</a></strong> for 10 minutes. Click into a few components (Button, Alert, Modal, Stack) and look at their live examples. Get a feel for how the docs are structured.</p>
+
+<p>Then open a real file in this codebase — try <code>frontend/src/pages/projects/components/DeleteModal.tsx</code> — and see if you can identify every PF component and what props control its appearance.</p>
+
+<p>Also read the project's styling rules at <code>.claude/rules/css-patternfly.md</code> — it's the full reference for everything covered in section 5 above.</p>
+
+<h2>Key takeaways</h2>
+
+<ul>
+  <li><strong>PatternFly is your primary tool</strong> — reach for PF components before writing any custom UI</li>
+  <li><strong>Props first, CSS last</strong> — the priority order (props → layout components → utility classes → SCSS) is non-negotiable</li>
+  <li><strong>Tokens, not values</strong> — if you must write CSS, use <code>var(--pf-t--*)</code> variables</li>
+  <li><strong>Check for wrappers</strong> — this project has custom versions of common PF patterns</li>
+  <li><strong>File upstream for bugs</strong> — work around locally with a TODO, but get PF to fix it at the source</li>
+  <li><strong>v6 only</strong> — ignore older examples that use <code>pf-v5-*</code> class names</li>
+</ul>
+
+<h2>What's next</h2>
+<p>Now that you know the UI building blocks, the next lesson will get practical: <strong>running the dev server</strong>, opening the dashboard in your browser, and making a small change that uses what you've learned. Hands-on time.</p>
+
+<div class="footer-reminder">
+  Questions? Something unclear? Ask your teacher (the agent) — I can explain any part of this in more detail, show you more real components from the repo, or walk through a specific PF component's docs with you. Just ask.
+</div>
+
+<div class="lesson-nav">
+  <a href="0002-typescript-for-js-developers.html">&larr; Lesson 2: TypeScript</a>
+  <a href="0004-running-the-dev-server.html">Next: Running the Dev Server &rarr;</a>
+</div>
+
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

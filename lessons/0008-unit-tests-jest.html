@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lesson 8: Unit Tests with Jest</title>
+  <link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+
+<h1>Lesson 8: Unit Tests with Jest</h1>
+<p><strong>Goal:</strong> Understand how unit tests work in this project, run them, read them, and write a simple one yourself.</p>
+
+<hr>
+
+<h2>The one-sentence version</h2>
+<p><strong>Jest tests live in <code>__tests__/</code> folders next to the code they test, and they verify small pieces (functions, hooks, components) in isolation.</strong></p>
+
+<h2>1. What is Jest?</h2>
+
+<p>Jest is a test runner made by Meta. It:</p>
+<ul>
+  <li><strong>Finds</strong> files named <code>*.spec.ts</code> or <code>*.test.ts</code></li>
+  <li><strong>Runs</strong> them in a simulated browser environment (jsdom)</li>
+  <li><strong>Reports</strong> pass/fail with helpful error messages</li>
+</ul>
+
+<p>In this project, unit tests verify:</p>
+<ul>
+  <li>Utility functions (pure logic)</li>
+  <li>React hooks (custom hooks)</li>
+  <li>React components (rendering + interactions)</li>
+</ul>
+
+<h2>2. Running tests</h2>
+
+<pre><code># Run ALL unit tests (from repo root)
+npm run test
+
+# Run tests for a specific file
+npx jest frontend/src/pages/hardwareProfiles/__tests__/utils.spec.ts
+
+# Run tests matching a pattern
+npx jest --testPathPattern="hardwareProfiles"
+
+# Run in watch mode (re-runs on file save)
+npx jest --watch</code></pre>
+
+<div class="callout callout-info">
+  <strong>Turbo caches test results</strong>
+  Since this is a monorepo with Turbo, <code>npm run test</code> might skip packages whose code hasn't changed. During active development, run jest directly or use <code>--watch</code>.
+</div>
+
+<h2>3. File naming and location</h2>
+
+<table>
+  <thead><tr><th>Code file</th><th>Test file</th></tr></thead>
+  <tbody>
+    <tr><td><code>pages/projects/utils.ts</code></td><td><code>pages/projects/__tests__/utils.spec.ts</code></td></tr>
+    <tr><td><code>concepts/pipelines/usePipelines.ts</code></td><td><code>concepts/pipelines/__tests__/usePipelines.spec.ts</code></td></tr>
+    <tr><td><code>components/Table.tsx</code></td><td><code>components/__tests__/Table.spec.tsx</code></td></tr>
+  </tbody>
+</table>
+
+<p>Convention: <code>__tests__/</code> folder beside the source, file named <code>{original}.spec.ts(x)</code>.</p>
+
+<h2>4. Anatomy of a test</h2>
+
+<pre><code>// __tests__/utils.spec.ts
+
+import { formatDisplayName } from '../utils';
+
+describe('formatDisplayName', () => {
+  it('should return the display name when present', () => {
+    const result = formatDisplayName({ displayName: 'My Project', name: 'my-project' });
+    expect(result).toBe('My Project');
+  });
+
+  it('should fall back to the resource name', () => {
+    const result = formatDisplayName({ displayName: '', name: 'my-project' });
+    expect(result).toBe('my-project');
+  });
+});</code></pre>
+
+<p>The structure is always:</p>
+<ol>
+  <li><strong><code>describe</code></strong> — groups related tests (usually one per function/component)</li>
+  <li><strong><code>it</code></strong> (or <code>test</code>) — one specific behavior being verified</li>
+  <li><strong><code>expect</code></strong> — the assertion (what should be true)</li>
+</ol>
+
+<h2>5. Testing React components</h2>
+
+<p>This project uses <strong>React Testing Library</strong> (RTL) for component tests. The philosophy: test what the user sees, not internal state.</p>
+
+<pre><code>// __tests__/DeleteButton.spec.tsx
+
+import { render, screen, fireEvent } from '@testing-library/react';
+import { DeleteButton } from '../DeleteButton';
+
+describe('DeleteButton', () => {
+  it('should open the confirmation modal when clicked', () => {
+    render(&lt;DeleteButton itemName="my-notebook" onDelete={jest.fn()} /&gt;);
+
+    // Find the button by its accessible role + name
+    const button = screen.getByRole('button', { name: /delete/i });
+    fireEvent.click(button);
+
+    // The modal should appear
+    expect(screen.getByText('Type "my-notebook" to confirm')).toBeInTheDocument();
+  });
+});</code></pre>
+
+<div class="callout callout-warn">
+  <strong>Query priority (from RTL docs)</strong>
+  Find elements in this order:
+  <ol style="margin: 0.5rem 0 0 0; padding-left: 1.2rem;">
+    <li><code>getByRole</code> — accessible role (button, heading, textbox)</li>
+    <li><code>getByLabelText</code> — form labels</li>
+    <li><code>getByText</code> — visible text content</li>
+    <li><code>getByTestId</code> — last resort (<code>data-testid</code> attribute)</li>
+  </ol>
+  Avoid testing implementation details like class names or component state.
+</div>
+
+<h2>6. Testing hooks</h2>
+
+<p>Custom hooks are tested with <code>renderHook</code> from React Testing Library:</p>
+
+<pre><code>import { renderHook, act } from '@testing-library/react';
+import { useCounter } from '../useCounter';
+
+describe('useCounter', () => {
+  it('should increment the count', () => {
+    const { result } = renderHook(() => useCounter(0));
+
+    act(() => {
+      result.current.increment();
+    });
+
+    expect(result.current.count).toBe(1);
+  });
+});</code></pre>
+
+<h2>7. Mocking</h2>
+
+<p>Tests should run without network calls. You mock external dependencies:</p>
+
+<pre><code>// Mock an API module
+jest.mock('~/api/k8s/projects', () => ({
+  getProjects: jest.fn().mockResolvedValue([
+    { metadata: { name: 'test-project' } },
+  ]),
+}));
+
+// Mock a hook
+jest.mock('~/concepts/projects/useProjects', () => ({
+  useProjects: () => [[mockProject], true, undefined],
+}));</code></pre>
+
+<p>Shared mock data lives in <code>frontend/src/__mocks__/</code> — reuse it instead of creating new mocks every test.</p>
+
+<h2>8. Common matchers you'll use</h2>
+
+<table>
+  <thead><tr><th>Matcher</th><th>What it checks</th></tr></thead>
+  <tbody>
+    <tr><td><code>toBe(value)</code></td><td>Strict equality (===)</td></tr>
+    <tr><td><code>toEqual(obj)</code></td><td>Deep equality (for objects/arrays)</td></tr>
+    <tr><td><code>toBeInTheDocument()</code></td><td>Element exists in the DOM</td></tr>
+    <tr><td><code>toHaveBeenCalledWith(args)</code></td><td>Mock function was called with specific args</td></tr>
+    <tr><td><code>toHaveLength(n)</code></td><td>Array or string has n items/chars</td></tr>
+    <tr><td><code>toBeNull()</code></td><td>Value is null</td></tr>
+    <tr><td><code>toContain(item)</code></td><td>Array includes item or string includes substring</td></tr>
+  </tbody>
+</table>
+
+<h2>9. The rules in this project</h2>
+
+<ul>
+  <li><strong>Every new utility function needs a test</strong></li>
+  <li><strong>Every new hook needs a test</strong></li>
+  <li><strong>Don't reduce code coverage</strong> — CI checks coverage and flags drops</li>
+  <li><strong>Reuse shared mocks</strong> from <code>__mocks__/</code></li>
+  <li><strong>Test behavior, not implementation</strong> — if you refactor the internals, tests should still pass</li>
+</ul>
+
+<hr>
+
+<h2>Check your understanding</h2>
+
+<div class="quiz" data-answer="b" data-hint="Tests live in __tests__/ folders beside the code, named .spec.ts(x).">
+  <p class="quiz-q">1. Where does the unit test for <code>pages/projects/utils.ts</code> live?</p>
+  <label><input type="radio" name="q1" value="a"> tests/pages/projects/utils.test.ts at the repo root</label>
+  <label><input type="radio" name="q1" value="b"> pages/projects/__tests__/utils.spec.ts beside the source</label>
+  <label><input type="radio" name="q1" value="c"> packages/cypress/tests/unit/projects-utils.spec.ts</label>
+  <label><input type="radio" name="q1" value="d"> frontend/jest/projects-utils.spec.ts in the config dir</label>
+  <div class="feedback"></div>
+</div>
+
+<div class="quiz" data-answer="a" data-hint="getByRole queries by accessible role — the preferred RTL query method.">
+  <p class="quiz-q">2. What's the preferred way to find a button in a React Testing Library test?</p>
+  <label><input type="radio" name="q2" value="a"> screen.getByRole('button', { name: /submit/i })</label>
+  <label><input type="radio" name="q2" value="b"> document.querySelector('.submit-button')</label>
+  <label><input type="radio" name="q2" value="c"> screen.getByTestId('submit-btn')</label>
+  <label><input type="radio" name="q2" value="d"> wrapper.find(Button).at(0)</label>
+  <div class="feedback"></div>
+</div>
+
+<div class="quiz" data-answer="c" data-hint="jest.mock replaces modules so tests run without network dependencies.">
+  <p class="quiz-q">3. Why do we mock API modules in unit tests?</p>
+  <label><input type="radio" name="q3" value="a"> Because Jest cannot run async functions in any test code</label>
+  <label><input type="radio" name="q3" value="b"> Because TypeScript requires all imports to be mocked first</label>
+  <label><input type="radio" name="q3" value="c"> So tests run without network calls and produce consistent results</label>
+  <label><input type="radio" name="q3" value="d"> Because the real API deletes data when called from test files</label>
+  <div class="feedback"></div>
+</div>
+
+<hr>
+
+<h2>Key takeaways</h2>
+<ul>
+  <li><strong><code>__tests__/*.spec.ts(x)</code></strong> beside the code they test</li>
+  <li><strong><code>describe</code> → <code>it</code> → <code>expect</code></strong> is the basic structure</li>
+  <li><strong>React Testing Library</strong> — test what users see (roles, text), not internals</li>
+  <li><strong>Mock external deps</strong> — no network calls in unit tests</li>
+  <li><strong>Every new function/hook/component needs a test</strong></li>
+</ul>
+
+<h2>What's next</h2>
+<p>Unit tests check small pieces. Next we'll look at <strong>Cypress</strong> — which tests the whole app in a real browser, clicking through flows like a user would.</p>
+
+<div class="lesson-nav">
+  <a href="0007-how-data-flows.html">&larr; Lesson 7: How Data Flows</a>
+  <a href="0009-cypress-tests.html">Next: Cypress Tests &rarr;</a>
+</div>
+
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

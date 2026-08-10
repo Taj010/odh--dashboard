@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lesson 10: Opening a PR the ODH Way</title>
+  <link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+
+<h1>Lesson 10: Opening a PR the ODH Way</h1>
+<p><strong>Goal:</strong> Understand the full workflow from picking up a task to getting your code merged — including the branch conventions, PR template, CI checks, and review process.</p>
+
+<hr>
+
+<h2>The one-sentence version</h2>
+<p><strong>Branch off <code>main</code>, make small focused commits, fill out the PR template completely, and make sure lint + type-check + tests pass before requesting review.</strong></p>
+
+<h2>1. The full workflow</h2>
+
+<div class="diagram">1. Pick up a Jira issue
+        │
+2. Create a branch: RHOAIENG-1234-fix-table-sort
+        │
+3. Make changes (small, focused commits)
+        │
+4. Run locally: lint, type-check, tests
+        │
+5. Push and open PR (fill the template!)
+        │
+6. CI runs automatically
+        │
+7. Address review feedback
+        │
+8. Merge (squash)</div>
+
+<h2>2. Branch naming</h2>
+
+<p>Branch names should reference the Jira ticket:</p>
+
+<pre><code># Pattern: {ticket}-{short-description}
+git checkout -b RHOAIENG-1234-fix-hardware-profile-sort
+git checkout -b RHOAIENG-5678-add-pipeline-delete-modal</code></pre>
+
+<p>If there's no Jira ticket (rare), use a descriptive name:</p>
+<pre><code>git checkout -b fix/table-empty-state-spacing</code></pre>
+
+<h2>3. Before pushing — run the checks locally</h2>
+
+<p>CI will run these anyway, but catching issues locally saves 10+ minutes of waiting:</p>
+
+<pre><code># Lint (finds code style issues)
+npm run lint
+
+# Type checking (finds TypeScript errors)
+npm run type-check
+
+# Unit tests
+npm run test
+
+# Fix lint issues automatically
+npm run lint:fix</code></pre>
+
+<div class="callout callout-warn">
+  <strong>Don't push with lint errors</strong>
+  CI will fail immediately. Run <code>npm run lint:fix</code> first. If auto-fix can't solve it, read the error message — ESLint tells you exactly what's wrong and often suggests a fix.
+</div>
+
+<h2>4. The PR template</h2>
+
+<p>When you open a PR on GitHub, you'll see a template. <strong>Fill it out completely.</strong> Here's what each section asks:</p>
+
+<table>
+  <thead><tr><th>Section</th><th>What to write</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Jira link</strong></td><td>Link to the RHOAIENG ticket</td></tr>
+    <tr><td><strong>Description</strong></td><td>What you changed and <em>why</em> (not just "fixed the bug")</td></tr>
+    <tr><td><strong>How to test</strong></td><td>Steps a reviewer can follow to verify your change works</td></tr>
+    <tr><td><strong>Screenshots</strong></td><td>Before/after if it's a UI change (always include these!)</td></tr>
+    <tr><td><strong>Type of change</strong></td><td>Checkbox: bug fix, feature, refactor, etc.</td></tr>
+    <tr><td><strong>Checklist</strong></td><td>Confirm: tests added, no console.log left, lint passes</td></tr>
+  </tbody>
+</table>
+
+<div class="callout callout-danger">
+  <strong>PRs without a filled template get ignored</strong>
+  Reviewers are busy. If they have to guess what your PR does or how to test it, it sits unreviewed. A good description = fast review.
+</div>
+
+<h2>5. What CI checks</h2>
+
+<p>When you push, several automated checks run:</p>
+
+<table>
+  <thead><tr><th>Check</th><th>What it verifies</th><th>Fails because of</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Lint</strong></td><td>Code style and patterns</td><td>ESLint errors, unused imports</td></tr>
+    <tr><td><strong>Type check</strong></td><td>TypeScript compiles cleanly</td><td>Type errors, missing types</td></tr>
+    <tr><td><strong>Unit tests</strong></td><td>Jest tests pass</td><td>Broken tests or coverage drop</td></tr>
+    <tr><td><strong>Cypress mock</strong></td><td>Mock UI tests pass</td><td>Broken selectors, changed behavior</td></tr>
+    <tr><td><strong>Coverage</strong></td><td>Test coverage doesn't decrease</td><td>New code without tests</td></tr>
+  </tbody>
+</table>
+
+<h2>6. Commit messages</h2>
+
+<p>This project uses squash merges, so individual commit messages matter less — but keep them clean for your own history:</p>
+
+<pre><code># Good
+git commit -m "fix(hardwareProfiles): sort by name handles empty strings"
+git commit -m "feat(pipelines): add delete confirmation modal"
+
+# Bad
+git commit -m "fix stuff"
+git commit -m "wip"
+git commit -m "asdfgh"</code></pre>
+
+<h2>7. Responding to review feedback</h2>
+
+<ul>
+  <li><strong>Be responsive</strong> — try to address feedback within a day</li>
+  <li><strong>Push new commits</strong> (don't force-push during review — it erases the reviewer's context)</li>
+  <li><strong>Reply to every comment</strong> — even if just "Done" or "Good point, fixed"</li>
+  <li><strong>Ask questions</strong> if feedback is unclear — reviewers appreciate engagement</li>
+</ul>
+
+<h2>8. Common PR mistakes (avoid these)</h2>
+
+<ul>
+  <li><strong>Giant PRs</strong> — 500+ lines are hard to review. Split into smaller PRs when possible.</li>
+  <li><strong>Leftover <code>console.log</code></strong> — always remove debug logs before pushing</li>
+  <li><strong>Missing tests</strong> — new features/fixes need tests. CI checks coverage.</li>
+  <li><strong>No screenshots for UI changes</strong> — reviewers can't run your branch easily</li>
+  <li><strong><code>eslint-disable</code> without explanation</strong> — if you must disable a rule, comment why</li>
+</ul>
+
+<hr>
+
+<h2>Check your understanding</h2>
+
+<div class="quiz" data-answer="b" data-hint="The PR template has specific sections — fill them all so reviewers know what to test.">
+  <p class="quiz-q">1. What must a PR include for UI changes?</p>
+  <label><input type="radio" name="q1" value="a"> Only the Jira ticket number in the title is sufficient</label>
+  <label><input type="radio" name="q1" value="b"> Before/after screenshots and steps to test the change</label>
+  <label><input type="radio" name="q1" value="c"> A video recording of your entire development session</label>
+  <label><input type="radio" name="q1" value="d"> Only a link to the Figma design file for reference</label>
+  <div class="feedback"></div>
+</div>
+
+<div class="quiz" data-answer="c" data-hint="Run lint, type-check, and tests locally to catch issues before CI.">
+  <p class="quiz-q">2. What should you do before pushing your branch?</p>
+  <label><input type="radio" name="q2" value="a"> Only run the app and check if it visually looks correct</label>
+  <label><input type="radio" name="q2" value="b"> Delete all test files because CI will regenerate them</label>
+  <label><input type="radio" name="q2" value="c"> Run npm run lint, type-check, and test to catch errors early</label>
+  <label><input type="radio" name="q2" value="d"> Force-push to main directly to speed up the review process</label>
+  <div class="feedback"></div>
+</div>
+
+<div class="quiz" data-answer="a" data-hint="Squash merge means all commits become one — individual messages are for your reference.">
+  <p class="quiz-q">3. How are PRs merged in this project?</p>
+  <label><input type="radio" name="q3" value="a"> Squash merge — all commits become one on main</label>
+  <label><input type="radio" name="q3" value="b"> Rebase merge — each commit appears separately on main</label>
+  <label><input type="radio" name="q3" value="c"> Direct push — no merge commit, code goes straight to main</label>
+  <label><input type="radio" name="q3" value="d"> Cherry-pick — only the latest commit is added to main</label>
+  <div class="feedback"></div>
+</div>
+
+<hr>
+
+<h2>Key takeaways</h2>
+<ul>
+  <li><strong>Branch from main</strong> with the Jira ticket in the name</li>
+  <li><strong>Run lint + type-check + tests locally</strong> before pushing</li>
+  <li><strong>Fill the PR template completely</strong> — description, test steps, screenshots</li>
+  <li><strong>Small PRs > big PRs</strong> — easier to review, faster to merge</li>
+  <li><strong>No console.log, no eslint-disable without comments</strong></li>
+</ul>
+
+<h2>What's next</h2>
+<p>Now for something architectural: <strong>Module Federation</strong> — how the monorepo's packages plug into the main dashboard as independent modules.</p>
+
+<div class="lesson-nav">
+  <a href="0009-cypress-tests.html">&larr; Lesson 9: Cypress Tests</a>
+  <a href="0011-module-federation.html">Next: Module Federation &rarr;</a>
+</div>
+
+<script src="../assets/quiz.js"></script>
+</body>
+</html>
