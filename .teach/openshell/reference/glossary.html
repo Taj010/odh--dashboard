@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Glossary — OpenShell in odh-dashboard</title>
+  <link rel="stylesheet" href="../assets/lesson.css" />
+</head>
+<body>
+  <article class="page">
+    <p class="crumb"><a href="../lessons/0001-the-openshell-swap.html">Lesson 0001</a> · Glossary</p>
+    <header class="mast">
+      <p class="kicker">Reference</p>
+      <h1>Glossary</h1>
+      <p class="lede">Short definitions used across this course. If a lesson uses a term, it means this.</p>
+    </header>
+
+    <h2>People and products</h2>
+    <p><strong>OpenShell.</strong> NVIDIA’s open-source agent sandbox platform. The thing that actually runs isolated agent environments. Repo: <a href="https://github.com/NVIDIA/OpenShell">NVIDIA/OpenShell</a>.</p>
+    <p><strong>OpenShell gateway.</strong> The API the platform exposes. Dashboard talks to this, not to Kubernetes Sandbox objects, once the epic is done. Today that talk is gRPC; upstream is moving toward <code>openshell-sdk-go</code>.</p>
+    <p><strong>openshell-dashboard.</strong> The upstream admin UI: React + PatternFly 6 + a Go BFF. Repo: <a href="https://github.com/Gkrumbach07/openshell-dashboard">Gkrumbach07/openshell-dashboard</a>.</p>
+    <p><strong>odh-dashboard.</strong> The Open Data Hub / RHOAI web UI monorepo you are in now. It is the <em>host</em> that will load OpenShell as a plugin.</p>
+    <p><strong>agent-ops.</strong> Current odh package (<code>packages/agent-ops</code>) that lists/creates agents by reading Kubernetes <strong>Sandbox CRs</strong>. This path is what the epic removes after cutover.</p>
+
+    <h2>How the UI is plugged in</h2>
+    <p><strong>Host.</strong> The main dashboard app in <code>frontend/</code>. It owns chrome (nav, auth session, feature flags) and loads plugins.</p>
+    <p><strong>Remote / federated module.</strong> A package under <code>packages/</code> that webpack Module Federation loads at runtime. It exposes <code>./extensions</code> (and sometimes <code>./extension-points</code>).</p>
+    <p><strong>Module Federation (MF).</strong> Webpack feature: the host fetches another app’s JavaScript at runtime and runs it in the same page, sharing one copy of React. See <a href="../../../docs/module-federation.md">docs/module-federation.md</a>.</p>
+    <p><strong>remoteEntry.js.</strong> The file the host loads to find a remote’s modules. Served under <code>/_mf/{name}/remoteEntry.js</code>.</p>
+    <p><strong>Extension.</strong> A small JSON-like object a plugin registers: “here is a route”, “here is a nav link”, “here is a feature area”. The host already knows how to render those types.</p>
+    <p><strong>Slot.</strong> Upstream’s name for an extension point inside OpenShell pages so the host can inject extra UI (a button, a tab). The epic requires at least one slot wired and documented.</p>
+    <p><strong>Singleton.</strong> “Only one copy of this library in the page.” React and PatternFly must be singletons or you get two Reacts and the UI breaks.</p>
+
+    <h2>How API calls move</h2>
+    <p><strong>BFF (Backend for Frontend).</strong> A small Go HTTP server that sits next to the UI. The browser talks REST to the BFF. The BFF talks to the real backend (Kubernetes today; OpenShell gateway tomorrow).</p>
+    <p><strong>Host proxy.</strong> odh-dashboard’s backend forwards browser calls like <code>/_bff/openshell/api/...</code> to the module BFF as <code>/api/...</code>. Config lives in the package’s <code>module-federation.proxy</code> array.</p>
+    <p><strong>Token relay.</strong> Upstream BFF does not log you in. It copies a bearer token from a header onto every gateway call. The gateway checks the JWT. See <a href="https://raw.githubusercontent.com/Gkrumbach07/openshell-dashboard/main/docs/adrs/0002-auth-relay-only-bff.md">ADR 0002</a>.</p>
+    <p><strong>x-forwarded-access-token.</strong> Header odh already uses to pass the logged-in user’s token to module BFFs when <code>authorize: true</code>.</p>
+
+    <h2>Domain objects</h2>
+    <p><strong>Sandbox CR.</strong> A Kubernetes Custom Resource <code>agents.x-k8s.io/v1beta1/sandboxes</code>. agent-ops lists ones labeled <code>openshell.ai/managed-by=openshell</code>.</p>
+    <p><strong>Workspace.</strong> OpenShell-native grouping (members + roles). Not the same thing as a Kubernetes namespace, even if they sometimes line up in a deployment.</p>
+    <p><strong>Write-only secrets.</strong> Provider credentials are sent to the gateway; the UI must never get the secret values back — only key names.</p>
+
+    <footer class="meta">Adhered to by every lesson in this workspace. Update here, not by inventing new meanings in a lesson.</footer>
+  </article>
+</body>
+</html>

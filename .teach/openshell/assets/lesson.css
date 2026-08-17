@@ -1,0 +1,278 @@
+/* Shared course chrome — Tufte-ish, print-friendly. Linked from every lesson. */
+:root {
+  --bg: #f7f4ef;
+  --ink: #1c1917;
+  --muted: #57534e;
+  --rule: #d6d3d1;
+  --accent: #0f4c5c;
+  --accent-soft: #e6f2f4;
+  --good: #14532d;
+  --good-bg: #ecfdf3;
+  --bad: #7f1d1d;
+  --bad-bg: #fef2f2;
+  --card: #fffcf8;
+  --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+  --sans: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+html { font-size: 19px; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--serif);
+  line-height: 1.55;
+}
+
+.page {
+  max-width: 42rem;
+  margin: 0 auto;
+  padding: 2.5rem 1.25rem 5rem;
+}
+
+header.mast {
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: 1.25rem;
+  margin-bottom: 2rem;
+}
+
+.kicker {
+  font-family: var(--sans);
+  font-size: 0.75rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0 0 0.4rem;
+}
+
+h1 {
+  font-size: 2.05rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  margin: 0 0 0.6rem;
+}
+
+.lede {
+  font-size: 1.1rem;
+  color: var(--muted);
+  margin: 0;
+}
+
+h2 {
+  font-family: var(--sans);
+  font-size: 1.05rem;
+  font-weight: 650;
+  margin: 2.4rem 0 0.7rem;
+  letter-spacing: -0.01em;
+}
+
+h3 {
+  font-family: var(--sans);
+  font-size: 0.95rem;
+  margin: 1.6rem 0 0.45rem;
+}
+
+p { margin: 0.75rem 0; }
+
+a { color: var(--accent); }
+
+code, kbd {
+  font-family: var(--mono);
+  font-size: 0.82em;
+  background: var(--accent-soft);
+  padding: 0.08em 0.32em;
+  border-radius: 3px;
+}
+
+pre {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  background: var(--card);
+  border: 1px solid var(--rule);
+  padding: 0.9rem 1rem;
+  overflow-x: auto;
+  line-height: 1.45;
+}
+
+ul, ol { padding-left: 1.2rem; }
+
+li { margin: 0.28rem 0; }
+
+.sidenote {
+  font-family: var(--sans);
+  font-size: 0.85rem;
+  color: var(--muted);
+  border-left: 3px solid var(--accent);
+  padding: 0.35rem 0 0.35rem 0.85rem;
+  margin: 1.1rem 0;
+}
+
+.callout {
+  background: var(--card);
+  border: 1px solid var(--rule);
+  padding: 0.9rem 1.1rem;
+  margin: 1.2rem 0;
+}
+
+.callout strong { font-family: var(--sans); }
+
+.win {
+  background: var(--good-bg);
+  border: 1px solid #bbf7d0;
+  padding: 0.9rem 1.1rem;
+  margin: 1.4rem 0;
+}
+
+.ask {
+  background: var(--accent-soft);
+  border: 1px solid #b7d6dc;
+  padding: 0.9rem 1.1rem;
+  margin: 2rem 0 0;
+  font-family: var(--sans);
+  font-size: 0.95rem;
+}
+
+.crumb {
+  font-family: var(--sans);
+  font-size: 0.82rem;
+  color: var(--muted);
+  margin-bottom: 1.5rem;
+}
+
+.crumb a { color: var(--muted); }
+
+/* Architecture toggle */
+.switcher {
+  display: flex;
+  gap: 0.4rem;
+  margin: 1rem 0 0.8rem;
+  font-family: var(--sans);
+}
+
+.switcher button {
+  flex: 1;
+  border: 1px solid var(--rule);
+  background: var(--card);
+  color: var(--ink);
+  padding: 0.55rem 0.4rem;
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.switcher button[aria-pressed="true"] {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+.arch {
+  background: var(--card);
+  border: 1px solid var(--rule);
+  padding: 1rem 1rem 0.4rem;
+}
+
+.arch svg { width: 100%; height: auto; display: block; }
+
+.arch .caption {
+  font-family: var(--sans);
+  font-size: 0.82rem;
+  color: var(--muted);
+  margin: 0.7rem 0 0.8rem;
+}
+
+.hidden { display: none; }
+
+/* Scope cards */
+.scope-grid {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.scope-item {
+  font-family: var(--sans);
+  font-size: 0.92rem;
+  text-align: left;
+  width: 100%;
+  border: 1px solid var(--rule);
+  background: var(--card);
+  padding: 0.7rem 0.85rem;
+  cursor: pointer;
+}
+
+.scope-item .guess {
+  display: block;
+  font-size: 0.78rem;
+  color: var(--muted);
+  margin-top: 0.25rem;
+}
+
+.scope-item.is-right {
+  background: var(--good-bg);
+  border-color: #86efac;
+}
+
+.scope-item.is-wrong {
+  background: var(--bad-bg);
+  border-color: #fecaca;
+}
+
+.legend {
+  font-family: var(--sans);
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin: 0.4rem 0 0.8rem;
+}
+
+footer.meta {
+  margin-top: 3rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--rule);
+  font-family: var(--sans);
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+/* Quiz */
+.quiz {
+  margin: 1.2rem 0 1.8rem;
+}
+
+.quiz h3 {
+  font-size: 0.95rem;
+  margin-bottom: 0.55rem;
+}
+
+.quiz button.opt {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font-family: var(--sans);
+  font-size: 0.9rem;
+  margin: 0.35rem 0;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid var(--rule);
+  background: var(--card);
+  cursor: pointer;
+  color: var(--ink);
+}
+
+.quiz button.opt[disabled] { cursor: default; }
+
+.quiz .feedback {
+  font-family: var(--sans);
+  font-size: 0.88rem;
+  margin-top: 0.45rem;
+  min-height: 1.3em;
+}
+
+@media print {
+  body { background: #fff; }
+  .switcher, .ask { break-inside: avoid; }
+  .quiz button.opt { border-color: #999; }
+}

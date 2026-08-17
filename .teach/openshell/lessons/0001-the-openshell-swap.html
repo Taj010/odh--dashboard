@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>0001 — The OpenShell swap</title>
+  <link rel="stylesheet" href="../assets/lesson.css" />
+</head>
+<body>
+  <article class="page">
+    <p class="crumb">
+      Lesson 0001 ·
+      <a href="../reference/glossary.html">Glossary</a> ·
+      <a href="../MISSION.md">Mission</a>
+    </p>
+    <header class="mast">
+      <p class="kicker">RHOAIENG-81030</p>
+      <h1>odh does not become OpenShell. It hosts OpenShell.</h1>
+      <p class="lede">
+        One picture, then you can sort any task on this epic into
+        “wire it in odh”, “fix it upstream”, or “still undecided”.
+      </p>
+    </header>
+
+    <p>
+      <a href="https://redhat.atlassian.net/browse/RHOAIENG-81030">RHOAIENG-81030</a>
+      is an <em>integration</em> epic. OpenShell already has a web UI and a Go
+      BFF. odh-dashboard already knows how to load a plugin (same family as
+      <a href="../../../packages/mlflow/README.md">MLflow</a> and
+      <a href="../../../packages/model-registry/docs/overview.md">model-registry</a>).
+      The epic is the adapter between those two facts — then it deletes the
+      old adapter.
+    </p>
+
+    <div class="callout">
+      <strong>The old adapter</strong> is
+      <code>packages/agent-ops</code>. It pretends Kubernetes
+      <strong>Sandbox custom resources</strong> are the product API.
+      OpenShell’s real product API is the <strong>gateway</strong>
+      (workspaces, gateway auth, policies). After cutover, the Sandbox-CR
+      UI, BFF, OpenAPI, and CR Cypress go away.
+    </div>
+
+    <h2>Two phone numbers</h2>
+    <p>
+      Same user-looking page (“list my sandboxes”). Completely different
+      next hop. Flip between them.
+    </p>
+
+    <div class="switcher" role="tablist" aria-label="Architecture">
+      <button type="button" id="btn-today" aria-pressed="true">Today — agent-ops</button>
+      <button type="button" id="btn-next" aria-pressed="false">After — OpenShell</button>
+    </div>
+
+    <div class="arch" id="arch-today">
+      <svg viewBox="0 0 640 220" role="img" aria-labelledby="t1">
+        <title id="t1">Today: browser to host to agent-ops BFF to Kubernetes Sandbox CRs</title>
+        <rect x="8" y="70" width="110" height="70" fill="#fffcf8" stroke="#0f4c5c" />
+        <text x="63" y="100" text-anchor="middle" font-size="13" font-family="system-ui">Browser</text>
+        <text x="63" y="118" text-anchor="middle" font-size="11" fill="#57534e" font-family="system-ui">odh host</text>
+        <path d="M118 105 H168" stroke="#0f4c5c" stroke-width="2" marker-end="url(#arr)" />
+        <rect x="168" y="70" width="130" height="70" fill="#e6f2f4" stroke="#0f4c5c" />
+        <text x="233" y="100" text-anchor="middle" font-size="13" font-family="system-ui">Host proxy</text>
+        <text x="233" y="118" text-anchor="middle" font-size="11" fill="#57534e" font-family="system-ui">/agent-ops/api</text>
+        <path d="M298 105 H348" stroke="#0f4c5c" stroke-width="2" marker-end="url(#arr)" />
+        <rect x="348" y="70" width="130" height="70" fill="#fffcf8" stroke="#0f4c5c" />
+        <text x="413" y="100" text-anchor="middle" font-size="13" font-family="system-ui">agent-ops BFF</text>
+        <text x="413" y="118" text-anchor="middle" font-size="11" fill="#57534e" font-family="system-ui">Go, OpenAPI</text>
+        <path d="M478 105 H528" stroke="#0f4c5c" stroke-width="2" marker-end="url(#arr)" />
+        <rect x="528" y="55" width="104" height="100" fill="#fef2f2" stroke="#7f1d1d" />
+        <text x="580" y="95" text-anchor="middle" font-size="13" font-family="system-ui">K8s API</text>
+        <text x="580" y="114" text-anchor="middle" font-size="11" fill="#57534e" font-family="system-ui">Sandbox CR</text>
+        <defs>
+          <marker id="arr" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+            <path d="M0,0 L8,4 L0,8" fill="#0f4c5c" />
+          </marker>
+        </defs>
+      </svg>
+      <p class="caption">
+        Proven in this repo:
+        <code>packages/agent-ops/bff/README.md</code> lists
+        <code>agents.x-k8s.io/v1beta1/sandboxes</code> labeled
+        <code>openshell.ai/managed-by=openshell</code>.
+        The user’s kube token is forwarded; RBAC is Kubernetes verbs on that CR.
+      </p>
+    </div>
+
+    <div class="arch hidden" id="arch-next">
+      <svg viewBox="0 0 640 220" role="img" aria-labelledby="t2">
+        <title id="t2">After: browser with upstream pages to host proxy to OpenShell BFF to gateway</title>
+        <rect x="8" y="70" width="110" height="70" fill="#fffcf8" stroke="#0f4c5c" />
+        <text x="63" y="95" text-anchor="middle" font-size="13" font-family="system-ui">Browser</text>
+        <text x="63" y="112" text-anchor="middle" font-size="11" fill="#57534e" font-family="system-ui">host + pages</text>
+        <text x="63" y="126" text-anchor="middle" font-size="11" fill="#57534e" font-family="system-ui">from upstream</text>
+        <path d="M118 105 H160" stroke="#0f4c5c" stroke-width="2" marker-end="url(#arr2)" />
+        <rect x="160" y="70" width="128" height="70" fill="#e6f2f4" stroke="#0f4c5c" />
+        <text x="224" y="100" text-anchor="middle" font-size="13" font-family="system-ui">Host proxy</text>
+        <text x="224" y="118" text-anchor="middle" font-size="11" fill="#57534e" font-family="system-ui">/_bff/openshell</text>
+        <path d="M288 105 H330" stroke="#0f4c5c" stroke-width="2" marker-end="url(#arr2)" />
+        <rect x="330" y="70" width="128" height="70" fill="#ecfdf3" stroke="#14532d" />
+        <text x="394" y="95" text-anchor="middle" font-size="13" font-family="system-ui">Upstream BFF</text>
+        <text x="394" y="112" text-anchor="middle" font-size="11" fill="#57534e" font-family="system-ui">token relay</text>
+        <text x="394" y="126" text-anchor="middle" font-size="11" fill="#57534e" font-family="system-ui">not a login app</text>
+        <path d="M458 105 H500" stroke="#0f4c5c" stroke-width="2" marker-end="url(#arr2)" />
+        <rect x="500" y="55" width="132" height="100" fill="#ecfdf3" stroke="#14532d" />
+        <text x="566" y="95" text-anchor="middle" font-size="13" font-family="system-ui">Gateway</text>
+        <text x="566" y="114" text-anchor="middle" font-size="11" fill="#57534e" font-family="system-ui">gRPC + JWT</text>
+        <text x="566" y="132" text-anchor="middle" font-size="11" fill="#57534e" font-family="system-ui">RBAC lives here</text>
+        <defs>
+          <marker id="arr2" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+            <path d="M0,0 L8,4 L0,8" fill="#0f4c5c" />
+          </marker>
+        </defs>
+      </svg>
+      <p class="caption">
+        Upstream README: browser REST → Go BFF → gRPC (bearer) → gateway.
+        The BFF <em>relays</em> a JWT; it does not validate it.
+        <a href="https://raw.githubusercontent.com/Gkrumbach07/openshell-dashboard/main/docs/adrs/0002-auth-relay-only-bff.md">ADR 0002</a>
+        says federated mode uses <em>the host’s</em> auth proxy and the same
+        <code>x-forwarded-access-token</code> header odh already forwards when
+        <code>authorize: true</code>.
+      </p>
+    </div>
+
+    <h2>What “integration only” means in practice</h2>
+    <p>
+      If a sandbox list page looks wrong, that is usually an
+      <strong>upstream</strong> bug. If the page never appears in the RHOAI
+      nav, or API calls 404 at the host, that is usually an
+      <strong>odh</strong> wiring bug.
+    </p>
+    <p>odh is on the hook for:</p>
+    <ul>
+      <li>A federated package that imports <code>openshell-dashboard/pages</code> (and api/types/slots) and registers host extensions (routes, nav, area flags).</li>
+      <li>Deploying the <em>upstream</em> Go BFF as the module container, with gateway URL/TLS env, plus Service / NetworkPolicy / proxy path.</li>
+      <li>An authenticated journey (list / create / delete in a workspace) <em>without</em> <code>AUTH_DISABLED</code>.</li>
+      <li>Flags: host area flag to hide the whole module; upstream flags (terminal) if the proxy cannot upgrade WebSockets.</li>
+      <li>At least one slot / extension-point path, documented.</li>
+      <li>Cypress + contract tests on the integrated path; then delete the Sandbox-CR stack.</li>
+      <li>Keep secrets write-only through the proxy — browser never sees credential values. That contract already exists upstream.</li>
+    </ul>
+
+    <h2>Practice: who owns this?</h2>
+    <p class="legend">Click each row. You are guessing the owner, then you get the answer. This is the skill the epic is testing.</p>
+    <div class="scope-grid" id="scope"></div>
+
+    <h2>What the spikes already proved</h2>
+    <p>
+      Two parallel spikes sit under the epic. They are not the product
+      launch; they shrink risk.
+    </p>
+    <h3>RHOAIENG-81066 — UI consume (Daniel Reed: spike complete)</h3>
+    <ul>
+      <li>odh can import upstream <code>build:lib</code> exports and render sandbox list + detail inside the host.</li>
+      <li>Thin adapter package (locally named <code>packages/openshell</code> so it would not collide with agent-ops). Later stories may reuse the <code>agent-ops</code> package name.</li>
+      <li>Host must wrap pages: TanStack Query v5 (module-local; host is still v4), AlertProvider, <code>setApiBasePath('/_bff/openshell')</code>, session-expired handler, <code>onViewSandbox</code> + controlled tabs. Upstream <code>LoginPage</code> is unused in federated mode.</li>
+      <li>React + PatternFly as MF singletons. Router was shared in the spike; v6 vs v7 is a recorded risk. Query is <em>not</em> shared.</li>
+      <li>After upstream PR #25, extra CSS workarounds were not needed.</li>
+    </ul>
+    <h3>RHOAIENG-81067 — BFF + gateway</h3>
+    <p>
+      Prove host proxy → upstream BFF → real gateway
+      (<code>OPENSHELL_GATEWAY_URL</code>, TLS CA if needed). Preference on
+      the ticket: <strong>ship the upstream BFF binary</strong> as the module
+      Deployment, do not reimplement gateway clients in odh. Auth notes for
+      the follow-on story: what token the gateway wants today vs what an
+      odh session actually is.
+    </p>
+
+    <div class="sidenote">
+      The long Go “interface decoration + Chi” write-up is a <em>future
+      sharing pattern</em> for the upstream BFF. It is not what makes 81030
+      done. Spike 81067 already prefers a binary in a container. We will
+      cover decoration in a later lesson so you do not mix “run their binary”
+      with “import their Go interfaces”.
+    </div>
+
+    <h2>Still open (do not pretend these are decided)</h2>
+    <ul>
+      <li><strong>Auth bridge:</strong> shared OIDC issuer (upstream’s preferred standalone shape) vs token exchange vs something else. ADR 0002 even says: if token exchange happens, it belongs in the <em>proxy/platform</em> layer, not the BFF.</li>
+      <li><strong>Packaging:</strong> confirm upstream BFF binary as the module image vs a thin odh-owned wrapper.</li>
+    </ul>
+
+    <h2>Check yourself</h2>
+    <p class="legend">Answers are the same length on purpose. Read the words, not the size of the button.</p>
+
+    <div class="quiz" data-quiz='{"q":"1. This epic’s job is to:","options":[{"id":"a","text":"Keep OpenShell features upstream; odh only wires them"},{"id":"b","text":"Move OpenShell product features into odh-owned packages"}],"answer":"a","why":"Product work stays in openshell-dashboard. odh hosts, proxies, authenticates, flags, tests, then deletes agent-ops."}'></div>
+
+    <div class="quiz" data-quiz='{"q":"2. Today agent-ops lists agents by talking to:","options":[{"id":"a","text":"Labeled Sandbox CRs in Kubernetes"},{"id":"b","text":"An OpenShell gateway (gRPC today)"}],"answer":"a","why":"That CR path is exactly what cutover removes. The gateway is the after picture."}'></div>
+
+    <div class="quiz" data-quiz='{"q":"3. The upstream BFF’s job with auth is to:","options":[{"id":"a","text":"Relay the bearer; the gateway checks JWTs"},{"id":"b","text":"Run login flows and validate tokens here"}],"answer":"a","why":"ADR 0002: relay-only. Federated deployments reuse the host proxy and x-forwarded-access-token."}'></div>
+
+    <div class="quiz" data-quiz='{"q":"4. After cutover, packages/agent-ops Sandbox-CR code is:","options":[{"id":"a","text":"Removed after the gateway path ships"},{"id":"b","text":"Kept forever as a parallel sandbox UI"}],"answer":"a","why":"Acceptance criteria: UI, BFF, OpenAPI, and CR Cypress are removed or fully replaced — not left as a second product."}'></div>
+
+    <div class="win">
+      <strong>Win for this lesson.</strong>
+      You can point at a request and say whether it belongs in
+      odh-dashboard, openshell-dashboard, or the still-open auth/packaging
+      questions — without opening the epic.
+    </div>
+
+    <p>
+      Primary source to read next (short, high trust):
+      the Auth section of the
+      <a href="https://github.com/Gkrumbach07/openshell-dashboard">openshell-dashboard README</a>
+      plus
+      <a href="https://raw.githubusercontent.com/Gkrumbach07/openshell-dashboard/main/docs/adrs/0002-auth-relay-only-bff.md">ADR 0002</a>.
+      That is the document the auth-bridge story will argue with, not a slide deck.
+    </p>
+
+    <p>
+      Next lesson (when you are ready): the host wrapper — what
+      Module Federation actually loads, and the provider inventory from spike 81066.
+    </p>
+
+    <div class="ask">
+      Stuck or fuzzy? Ask me in this chat. I am the teacher for this epic —
+      follow-ups, “explain that box again”, or “is this my ticket?” are the point.
+      If you already know MF or Go BFFs well, say so and we skip ahead.
+    </div>
+
+    <footer class="meta">
+      Grounded in the epic text, upstream README/ADR 0002, odh
+      <code>docs/module-federation.md</code>, and
+      <code>packages/agent-ops/bff/README.md</code> as of this session.
+      Jira MCP could not fetch RHOAIENG-81030 from the connected project filter.
+    </footer>
+  </article>
+
+  <script src="../assets/quiz.js"></script>
+  <script>
+    (function () {
+      var today = document.getElementById("arch-today");
+      var next = document.getElementById("arch-next");
+      var bToday = document.getElementById("btn-today");
+      var bNext = document.getElementById("btn-next");
+      function show(which) {
+        var isToday = which === "today";
+        today.classList.toggle("hidden", !isToday);
+        next.classList.toggle("hidden", isToday);
+        bToday.setAttribute("aria-pressed", isToday ? "true" : "false");
+        bNext.setAttribute("aria-pressed", isToday ? "false" : "true");
+      }
+      bToday.addEventListener("click", function () { show("today"); });
+      bNext.addEventListener("click", function () { show("next"); });
+
+      var items = [
+        { text: "Sandbox list page layout / empty states", owner: "upstream", why: "Product UI. Upstream already exports pages." },
+        { text: "Register nav + /openshell/sandboxes route on the host", owner: "odh", why: "Host extensions (app.route / app.navigation), same as other remotes." },
+        { text: "gRPC client that calls the gateway", owner: "upstream", why: "Lives in the upstream BFF. odh should not rewrite it." },
+        { text: "Proxy /_bff/openshell/api → /api in package.json", owner: "odh", why: "Host reverse proxy config. See docs/module-federation.md." },
+        { text: "Missing gateway feature (new workspace role)", owner: "upstream", why: "Epic: capability gaps are fixed upstream, not in odh." },
+        { text: "Which JWT an odh session may present to the gateway", owner: "open", why: "Epic open question: shared issuer vs token exchange vs other." },
+        { text: "Delete Sandbox-CR Cypress after cutover", owner: "odh", why: "Removal of packages/agent-ops is an odh change, after the new path works." },
+        { text: "Ship AUTH_DISABLED=true in production to make the demo work", owner: "wrong", why: "Acceptance criteria forbid this. Auth must work for a real user." }
+      ];
+      var labels = { upstream: "upstream", odh: "odh-dashboard", open: "still open", wrong: "do not do this" };
+      var root = document.getElementById("scope");
+      items.forEach(function (item) {
+        var btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "scope-item";
+        btn.innerHTML = item.text + '<span class="guess">click: upstream · odh · open · forbidden</span>';
+        btn.addEventListener("click", function () {
+          if (btn.dataset.done) return;
+          btn.dataset.done = "1";
+          var ok = item.owner !== "wrong";
+          btn.classList.add(item.owner === "wrong" ? "is-wrong" : "is-right");
+          if (item.owner === "wrong") btn.classList.add("is-wrong");
+          btn.querySelector(".guess").textContent = labels[item.owner] + " — " + item.why;
+        });
+        root.appendChild(btn);
+      });
+    })();
+  </script>
+</body>
+</html>
