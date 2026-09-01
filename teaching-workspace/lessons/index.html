@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agent Ops &amp; OpenShell — Lessons</title>
+  <link rel="stylesheet" href="../assets/styles.css">
+  <style>
+    .lesson-list { list-style: none; padding: 0; }
+    .lesson-list li {
+      margin-bottom: var(--spacing-md);
+      padding: var(--spacing-md);
+      border: 1px solid var(--color-border);
+      border-radius: 6px;
+      background: var(--color-surface);
+    }
+    .lesson-list a { font-weight: 600; font-size: 1.1em; }
+    .lesson-num { color: var(--color-text-muted); font-size: 0.85em; }
+  </style>
+</head>
+<body>
+
+<h1>Lessons</h1>
+
+<p>Track 3 (OpenShell Admin UI) — read in order.</p>
+
+<ol class="lesson-list">
+  <li>
+    <span class="lesson-num">Lesson 1</span><br>
+    <a href="./0001-what-is-agent-ops.html">What is Agent Ops?</a>
+    <p>Architecture: Frontend → BFF → Kubernetes. What Agent Ops does.</p>
+  </li>
+  <li>
+    <span class="lesson-num">Lesson 2</span><br>
+    <a href="./0002-jira-ticket-hierarchy.html">Understanding the Jira Ticket Hierarchy</a>
+    <p>Strategy → Feature → Epic → Story. Your three tracks and blockers.</p>
+  </li>
+  <li>
+    <span class="lesson-num">Lesson 3</span><br>
+    <a href="./0003-openshell-two-epics.html">OpenShell — Two Epics, One Feature</a>
+    <p>81030 (odh-dashboard) vs 87732 (upstream). Which stories are yours.</p>
+  </li>
+  <li>
+    <span class="lesson-num">Lesson 4</span><br>
+    <a href="./0004-89723-acceptance-criteria.html">Reading Ticket 89723</a>
+    <p>Each acceptance criterion → files to create and how to verify.</p>
+  </li>
+  <li>
+    <span class="lesson-num">Lesson 5</span><br>
+    <a href="./0005-host-wrapper-and-mock-bff.html">The Host Wrapper &amp; Mock BFF</a>
+    <p>Four layers: extensions, wrapper, routes, upstream pages. Mock data in dev.</p>
+  </li>
+</ol>
+
+<h2>Reference</h2>
+
+<ul>
+  <li><a href="../reference/glossary.html">Glossary</a></li>
+  <li><a href="../reference/openshell-dependency-map.html">OpenShell dependency map</a></li>
+  <li><a href="../reference/89723-file-checklist.html">89723 file checklist</a></li>
+  <li><a href="../MISSION.md">Mission</a> (markdown)</li>
+</ul>
+
+</body>
+</html>

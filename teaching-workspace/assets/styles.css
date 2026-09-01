@@ -1,0 +1,239 @@
+/* Teaching Workspace - Shared Styles */
+
+:root {
+  --color-primary: #0066cc;
+  --color-secondary: #6a737d;
+  --color-success: #28a745;
+  --color-warning: #ffc107;
+  --color-danger: #dc3545;
+  --color-background: #ffffff;
+  --color-surface: #f6f8fa;
+  --color-border: #e1e4e8;
+  --color-text: #24292e;
+  --color-text-muted: #586069;
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'SF Mono', Consolas, 'Liberation Mono', Menlo, monospace;
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--color-text);
+  background: var(--color-background);
+  max-width: 800px;
+  margin: 0 auto;
+  padding: var(--spacing-lg);
+}
+
+h1, h2, h3, h4 {
+  margin-top: var(--spacing-xl);
+  margin-bottom: var(--spacing-md);
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+h1 { font-size: 2em; border-bottom: 1px solid var(--color-border); padding-bottom: var(--spacing-sm); }
+h2 { font-size: 1.5em; }
+h3 { font-size: 1.25em; }
+h4 { font-size: 1em; }
+
+p { margin-bottom: var(--spacing-md); }
+
+a {
+  color: var(--color-primary);
+  text-decoration: none;
+}
+a:hover { text-decoration: underline; }
+
+code {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  background: var(--color-surface);
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+
+pre {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: var(--spacing-md);
+  overflow-x: auto;
+}
+
+pre code {
+  background: none;
+  padding: 0;
+}
+
+/* Callout boxes */
+.callout {
+  padding: var(--spacing-md);
+  border-radius: 6px;
+  margin: var(--spacing-md) 0;
+  border-left: 4px solid;
+}
+
+.callout-info {
+  background: #f1f8ff;
+  border-color: var(--color-primary);
+}
+
+.callout-success {
+  background: #dcffe4;
+  border-color: var(--color-success);
+}
+
+.callout-warning {
+  background: #fff3cd;
+  border-color: var(--color-warning);
+}
+
+.callout-danger {
+  background: #ffeef0;
+  border-color: var(--color-danger);
+}
+
+/* Key term definitions */
+.term {
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+/* Architecture diagrams - ASCII art friendly */
+.diagram {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  background: var(--color-surface);
+  padding: var(--spacing-md);
+  border-radius: 6px;
+  overflow-x: auto;
+  white-space: pre;
+  line-height: 1.4;
+}
+
+/* Quiz styles */
+.quiz {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: var(--spacing-md);
+  margin: var(--spacing-lg) 0;
+}
+
+.quiz-question {
+  font-weight: 600;
+  margin-bottom: var(--spacing-md);
+}
+
+.quiz-options {
+  list-style: none;
+  padding: 0;
+}
+
+.quiz-options li {
+  padding: var(--spacing-sm) var(--spacing-md);
+  margin: var(--spacing-xs) 0;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.quiz-options li:hover {
+  background: #f0f0f0;
+}
+
+.quiz-options li.correct {
+  background: #dcffe4;
+  border-color: var(--color-success);
+}
+
+.quiz-options li.incorrect {
+  background: #ffeef0;
+  border-color: var(--color-danger);
+}
+
+.quiz-feedback {
+  margin-top: var(--spacing-md);
+  padding: var(--spacing-md);
+  border-radius: 4px;
+  display: none;
+}
+
+/* Lesson navigation */
+.lesson-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md) 0;
+  margin-bottom: var(--spacing-lg);
+  border-bottom: 1px solid var(--color-border);
+  font-size: 0.95em;
+}
+
+.lesson-nav-footer {
+  margin-top: var(--spacing-xl);
+  margin-bottom: 0;
+  border-bottom: none;
+  border-top: 1px solid var(--color-border);
+  padding-top: var(--spacing-lg);
+  padding-bottom: 0;
+}
+
+.lesson-nav-index {
+  color: var(--color-text-muted);
+  margin-right: auto;
+}
+
+.lesson-nav-prev {
+  margin-right: auto;
+}
+
+.lesson-nav-next {
+  margin-left: auto;
+}
+
+.lesson-nav-end {
+  justify-content: flex-end;
+}
+
+.lesson-nav-start {
+  justify-content: flex-start;
+}
+
+.lesson-nav a {
+  color: var(--color-primary);
+  text-decoration: none;
+}
+
+.lesson-nav a:hover {
+  text-decoration: underline;
+}
+
+/* Print styles */
+@media print {
+  body {
+    max-width: none;
+    padding: 0;
+  }
+  
+  .callout {
+    break-inside: avoid;
+  }
+  
+  pre {
+    white-space: pre-wrap;
+  }
+}

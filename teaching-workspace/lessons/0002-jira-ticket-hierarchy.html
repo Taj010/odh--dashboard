@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lesson 2: Understanding the Jira Ticket Hierarchy</title>
+  <link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body>
+
+<h1>Lesson 2: Understanding the Jira Ticket Hierarchy</h1>
+
+<nav class="lesson-nav" aria-label="Lesson navigation">
+  <a href="./index.html" class="lesson-nav-index">All lessons</a>
+  <a href="./0001-what-is-agent-ops.html" class="lesson-nav-prev">← Lesson 1: Agent Ops</a>
+  <a href="./0003-openshell-two-epics.html" class="lesson-nav-next">Lesson 3: Two epics →</a>
+</nav>
+
+<p><strong>Goal:</strong> Understand how Jira tickets are organized and how to read them to know what work is needed.</p>
+
+<h2>The Ticket Hierarchy (Top to Bottom)</h2>
+
+<p>Enterprise projects organize work in layers. Think of it like a company org chart, but for tasks:</p>
+
+<div class="diagram">
+┌─────────────────────────────────────────────────────────────────┐
+│  STRATEGY (RHAISTRAT-1697)                                      │
+│  "Agents UI in AI Hub: Discovery, Registry & Deployment Views"  │
+│  ─────────────────────────────────────────────────────────────  │
+│  The BIG vision. Multi-release. Executive-level.                │
+└───────────────────────────┬─────────────────────────────────────┘
+                            │
+        ┌───────────────────┼───────────────────┐
+        ▼                   ▼                   ▼
+┌───────────────┐   ┌───────────────┐   ┌───────────────┐
+│  FEATURE 1    │   │  FEATURE 2    │   │  FEATURE 3    │
+│  (1758)       │   │  (1742)       │   │  (2467)       │
+│  List View    │   │  Deploy       │   │  Admin UI     │
+│  ✅ DONE      │   │  🔄 IN PROG   │   │  🆕 NEW       │
+└───────┬───────┘   └───────┬───────┘   └───────┬───────┘
+        │                   │                   │
+        ▼                   ▼                   ▼
+┌───────────────┐   ┌───────────────┐   ┌───────────────┐
+│  EPICS        │   │  EPICS        │   │  EPICS        │
+│  • 62584      │   │  • 62694      │   │  • Epic A     │
+│  • 62692      │   │  • 62695      │   │  • Epic B     │
+│  • 62693      │   │  • 73642      │   │  (6+4 stories)│
+└───────┬───────┘   └───────┬───────┘   └───────────────┘
+        │                   │
+        ▼                   ▼
+┌───────────────────────────────────────┐
+│  STORIES (the actual coding work)     │
+│  "As a user, I can..."                │
+│  Each story = a PR or small set of PRs│
+└───────────────────────────────────────┘
+</div>
+
+<h2>What Each Level Means</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>Level</th>
+      <th>Prefix</th>
+      <th>Scope</th>
+      <th>Who Writes It</th>
+      <th>Example</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Strategy</strong></td>
+      <td>RHAISTRAT</td>
+      <td>Multi-release vision</td>
+      <td>Product/PM</td>
+      <td>"Agent Hub in RHOAI Dashboard"</td>
+    </tr>
+    <tr>
+      <td><strong>Feature</strong></td>
+      <td>RHAISTRAT or RHAIRFE</td>
+      <td>One release deliverable</td>
+      <td>Product/PM + Eng Lead</td>
+      <td>"Deploy agents from Dashboard"</td>
+    </tr>
+    <tr>
+      <td><strong>Epic</strong></td>
+      <td>RHOAIENG</td>
+      <td>Logical grouping of stories</td>
+      <td>Engineering</td>
+      <td>"Deploy BFF" or "Deploy UI"</td>
+    </tr>
+    <tr>
+      <td><strong>Story</strong></td>
+      <td>RHOAIENG</td>
+      <td>One implementable unit</td>
+      <td>Engineering</td>
+      <td>"Add deploy button to list page"</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Your Three Tracks (Explained Simply)</h2>
+
+<h3>Track 1: List View (DONE) — <a href="https://redhat.atlassian.net/browse/RHAISTRAT-1758">RHAISTRAT-1758</a></h3>
+
+<div class="callout callout-success">
+  <strong>Status:</strong> Shipped in 3.5 GA
+</div>
+
+<p><strong>What it does:</strong> Shows a list of deployed agents in the dashboard.</p>
+<p><strong>User story:</strong> "I can see all my running agents in one place."</p>
+
+<div class="diagram">
+┌─────────────────────────────────────────────────┐
+│  Agent Deployments                    [Filter ▼]│
+├─────────────────────────────────────────────────┤
+│  Name              Namespace    Status   Endpoint│
+│  ─────────────────────────────────────────────── │
+│  support-agent     prod         Running  :8080   │
+│  code-assistant    dev          Running  :8080   │
+│  data-analyzer     staging      Stopped  —       │
+└─────────────────────────────────────────────────┘
+</div>
+
+<p><strong>Code location:</strong></p>
+<ul>
+  <li>BFF: <code>packages/agent-ops/bff/internal/api/</code> (list handlers)</li>
+  <li>Frontend: <code>packages/agent-ops/frontend/src/app/pages/agentRuntimes/</code></li>
+</ul>
+
+<h3>Track 2: Deploy (IN PROGRESS) — <a href="https://redhat.atlassian.net/browse/RHAISTRAT-1742">RHAISTRAT-1742</a></h3>
+
+<div class="callout callout-warning">
+  <strong>Status:</strong> In Progress (target 3.6)
+</div>
+
+<p><strong>What it does:</strong> Lets users deploy new agents from the dashboard.</p>
+<p><strong>User story:</strong> "I can deploy a new agent without using CLI."</p>
+
+<div class="diagram">
+┌─────────────────────────────────────────────────┐
+│  Deploy Agent                              [X]  │
+├─────────────────────────────────────────────────┤
+│                                                 │
+│  Name:        [my-new-agent        ]            │
+│  Namespace:   [production     ▼    ]            │
+│  Image:       [quay.io/example/agent]           │
+│  Tag:         [v1.0.0              ]            │
+│  Framework:   [langgraph      ▼    ]            │
+│                                                 │
+│  Environment Variables:                         │
+│  ┌──────────┬──────────────┐                    │
+│  │ LOG_LEVEL│ info         │  [+ Add]           │
+│  └──────────┴──────────────┘                    │
+│                                                 │
+│            [Cancel]  [Deploy Agent]             │
+└─────────────────────────────────────────────────┘
+</div>
+
+<p><strong>Also includes:</strong> Stop, Start, Restart, Delete actions on the list page.</p>
+
+<p><strong>Code location:</strong></p>
+<ul>
+  <li>BFF: <code>packages/agent-ops/bff/internal/api/</code> (deploy handlers)</li>
+  <li>Frontend: <code>packages/agent-ops/frontend/src/app/deployWizard/</code></li>
+</ul>
+
+<h3>Track 3: Admin UI (NEW — Your Work) — <a href="https://redhat.atlassian.net/browse/RHAISTRAT-2467">RHAISTRAT-2467</a></h3>
+
+<div class="callout callout-danger">
+  <strong>Status:</strong> ⚠️ BLOCKED on backend dependency
+</div>
+
+<p><strong>What it does:</strong> Administration UI for OpenShell (workspaces, policies, credentials).</p>
+<p><strong>User story:</strong> "As an admin, I can configure governed execution environments for agents."</p>
+
+<p><strong>Key concepts:</strong></p>
+<ul>
+  <li><span class="term">Workspace</span> — Tenant isolation boundary (who can access what sandboxes)</li>
+  <li><span class="term">Policy</span> — Security rules (network policies, allowed binaries, filesystem access)</li>
+  <li><span class="term">Provider</span> — Inference endpoints and credentials (API keys for LLMs)</li>
+  <li><span class="term">Interceptor</span> — Webhooks that enforce default policies across all sandboxes</li>
+</ul>
+
+<h2>The Critical Blocker</h2>
+
+<p>Track 3 is <strong>hard-gated</strong> on a backend that doesn't exist yet:</p>
+
+<div class="callout callout-danger">
+  <strong><a href="https://redhat.atlassian.net/browse/RHAISTRAT-1752">RHAISTRAT-1752</a></strong> — RHOAI must deploy an OpenShell gateway<br><br>
+  <strong>Status:</strong> On-hold upstream, undated<br>
+  <strong>Impact:</strong> The Admin UI has nothing to administer. You can build the UI, but it won't work in a real RHOAI install until the gateway exists.
+</div>
+
+<p><strong>What this means for you:</strong></p>
+<ol>
+  <li>You can develop against a <em>self-hosted</em> or <em>HyperShell</em> gateway (for dev/demo)</li>
+  <li>The feature <strong>cannot ship</strong> until the backend lands</li>
+  <li>Don't commit to a specific release date — it tracks the backend</li>
+</ol>
+
+<h2>Reading a Jira Ticket: What to Look For</h2>
+
+<p>When you open a Jira ticket, here's what matters:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Section</th>
+      <th>What It Tells You</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Summary</strong></td>
+      <td>One-line description of what's needed</td>
+    </tr>
+    <tr>
+      <td><strong>Description / Goal</strong></td>
+      <td>The "why" — what problem this solves</td>
+    </tr>
+    <tr>
+      <td><strong>In Scope / Out of Scope</strong></td>
+      <td>Exactly what you should and shouldn't build</td>
+    </tr>
+    <tr>
+      <td><strong>Acceptance Criteria</strong></td>
+      <td>How to know when you're "done" (your checklist)</td>
+    </tr>
+    <tr>
+      <td><strong>Dependencies</strong></td>
+      <td>What must exist before you can start/finish</td>
+    </tr>
+    <tr>
+      <td><strong>Child Issues / Delivery Epics</strong></td>
+      <td>The breakdown of actual work</td>
+    </tr>
+    <tr>
+      <td><strong>Status</strong></td>
+      <td>New / In Progress / Blocked / Done</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>How Dependencies Work</h2>
+
+<p>Dependencies tell you what <strong>blocks</strong> your work:</p>
+
+<div class="diagram">
+Dependency Types:
+─────────────────────────────────────────────────────
+"Blocked by" → You CANNOT start until this is done
+"Depends on" → You can start, but can't finish/ship
+"Related to" → Nice to know, doesn't block you
+</div>
+
+<p>From RHAISTRAT-2467's dependencies:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Dependency</th>
+      <th>Status</th>
+      <th>Impact</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>RHOAI-deployed gateway (1752)</td>
+      <td>🔴 BLOCKED</td>
+      <td><strong>Hard blocker</strong> — cannot ship without it</td>
+    </tr>
+    <tr>
+      <td>Go SDK (2245)</td>
+      <td>🟡 Needed</td>
+      <td>Can use hand-rolled stubs, but SDK is cleaner</td>
+    </tr>
+    <tr>
+      <td>Double-auth spike</td>
+      <td>🟡 In Progress</td>
+      <td>Embedded RHOAI experience can't auth without it</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Your Work: Track 3 Epics</h2>
+
+<p>Track 3 has 2 epics with 10 stories total. To understand them, I need you to paste:</p>
+
+<ol>
+  <li>The epic titles/links</li>
+  <li>The story titles within each epic</li>
+</ol>
+
+<p>Once I see those, I can create:</p>
+<ul>
+  <li>A dependency map showing what's blocked vs. ready</li>
+  <li>A recommended order to tackle stories</li>
+  <li>Code examples for each type of work</li>
+</ul>
+
+<h2>Quiz: Check Your Understanding</h2>
+
+<div class="quiz">
+  <p class="quiz-question">1. What does "hard-gated" mean for a feature?</p>
+  <ul class="quiz-options" data-answer="c">
+    <li data-option="a">It's very difficult to implement</li>
+    <li data-option="b">It requires special permissions</li>
+    <li data-option="c">It cannot ship until a dependency is met</li>
+    <li data-option="d">It's locked and can't be changed</li>
+  </ul>
+</div>
+
+<div class="quiz">
+  <p class="quiz-question">2. What is the relationship between an Epic and a Story?</p>
+  <ul class="quiz-options" data-answer="b">
+    <li data-option="a">They are the same thing with different names</li>
+    <li data-option="b">An Epic groups related Stories together</li>
+    <li data-option="c">A Story groups related Epics together</li>
+    <li data-option="d">Epics are for backend, Stories are for frontend</li>
+  </ul>
+</div>
+
+<div class="quiz">
+  <p class="quiz-question">3. Why is Track 3 (Admin UI) blocked?</p>
+  <ul class="quiz-options" data-answer="a">
+    <li data-option="a">The OpenShell gateway doesn't exist in RHOAI yet</li>
+    <li data-option="b">The frontend framework isn't ready</li>
+    <li data-option="c">Track 1 and Track 2 must finish first</li>
+    <li data-option="d">There's no designer assigned</li>
+  </ul>
+</div>
+
+<script>
+document.querySelectorAll('.quiz-options').forEach(ul => {
+  const answer = ul.dataset.answer;
+  ul.querySelectorAll('li').forEach(li => {
+    li.addEventListener('click', () => {
+      ul.querySelectorAll('li').forEach(l => l.classList.remove('correct', 'incorrect'));
+      if (li.dataset.option === answer) {
+        li.classList.add('correct');
+      } else {
+        li.classList.add('incorrect');
+        ul.querySelector(`[data-option="${answer}"]`).classList.add('correct');
+      }
+    });
+  });
+});
+</script>
+
+<h2>What's Next?</h2>
+
+<p>Continue with OpenShell — how the two epics relate and which stories are yours:</p>
+<ul>
+  <li><strong><a href="./0003-openshell-two-epics.html">Lesson 3:</a></strong> Two epics, one feature (81030 vs 87732)</li>
+  <li><strong><a href="./0004-89723-acceptance-criteria.html">Lesson 4:</a></strong> 89723 acceptance criteria walkthrough</li>
+  <li><strong><a href="./0005-host-wrapper-and-mock-bff.html">Lesson 5:</a></strong> Host wrapper and mock BFF setup</li>
+</ul>
+
+<hr>
+
+<p><em>Questions? Ask your teacher (the agent) — I'm here to help clarify anything.</em></p>
+
+<nav class="lesson-nav lesson-nav-footer" aria-label="Lesson navigation">
+  <a href="./index.html" class="lesson-nav-index">All lessons</a>
+  <a href="./0001-what-is-agent-ops.html" class="lesson-nav-prev">← Lesson 1: Agent Ops</a>
+  <a href="./0003-openshell-two-epics.html" class="lesson-nav-next">Lesson 3: Two epics →</a>
+</nav>
+
+</body>
+</html>

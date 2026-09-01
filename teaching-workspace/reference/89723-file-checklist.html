@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reference: 89723 File Checklist</title>
+  <link rel="stylesheet" href="../assets/styles.css">
+  <style>
+    @media print { body { max-width: 100%; } }
+    .check { list-style: none; padding-left: 0; }
+    .check li::before { content: "☐ "; }
+    code { font-size: 0.85em; }
+  </style>
+</head>
+<body>
+
+<h1>89723 File Checklist</h1>
+
+<p><a href="../lessons/0004-89723-acceptance-criteria.html">Lesson 4</a> · Ticket <a href="https://redhat.atlassian.net/browse/RHOAIENG-89723">RHOAIENG-89723</a></p>
+
+<h2>Create / Modify</h2>
+
+<ul class="check">
+  <li><code>packages/openshell/package.json</code> — MF config, proxy, ports 9113 / 8943</li>
+  <li><code>packages/openshell/extensions.ts</code></li>
+  <li><code>packages/openshell/frontend/package.json</code></li>
+  <li><code>packages/openshell/frontend/config/moduleFederation.js</code></li>
+  <li><code>packages/openshell/frontend/src/odh/extensions.ts</code></li>
+  <li><code>packages/openshell/frontend/src/odh/OpenShellWrapper.tsx</code></li>
+  <li><code>packages/openshell/frontend/src/odh/OpenShellFederatedProviders.tsx</code></li>
+  <li><code>packages/openshell/frontend/src/odh/OpenShellRoutes.tsx</code></li>
+  <li><code>packages/plugin-core/src/areas/types.ts</code> — <code>OPEN_SHELL</code> area</li>
+  <li><code>frontend/src/concepts/areas/const.ts</code> — flag mapping</li>
+  <li>Mock BFF or mock JSON for workspaces list + detail</li>
+</ul>
+
+<h2>Do Not Touch (other tickets)</h2>
+
+<ul>
+  <li>Cluster manifests → 89740</li>
+  <li>Auth banner / Cypress → 89741</li>
+  <li>Real BFF Go code → 89726</li>
+</ul>
+
+<h2>Verify Before PR</h2>
+
+<ul class="check">
+  <li>Flag ON → OpenShell tab visible under Agents</li>
+  <li>Flag OFF → tab hidden; direct URL blocked</li>
+  <li>List loads (mocked data)</li>
+  <li>Empty list → empty state</li>
+  <li>Click row → detail; Back button works</li>
+  <li>Network: <code>/openshell/api/*</code> on host origin</li>
+  <li><code>npm run validate:ports</code> passes</li>
+  <li>Federated build succeeds</li>
+</ul>
+
+<h2>Ports</h2>
+
+<table>
+  <thead><tr><th>Purpose</th><th>Port</th></tr></thead>
+  <tbody>
+    <tr><td>Local MF dev server</td><td>9113</td></tr>
+    <tr><td>Sidecar BFF (production)</td><td>8943</td></tr>
+    <tr><td>agent-ops BFF (don't collide)</td><td>8843</td></tr>
+  </tbody>
+</table>
+
+<p><a href="../lessons/0004-89723-acceptance-criteria.html">← Back to Lesson 4</a></p>
+
+</body>
+</html>

@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reference: Agent Ops Glossary</title>
+  <link rel="stylesheet" href="../assets/styles.css">
+  <style>
+    .glossary-term { 
+      font-weight: 600; 
+      color: var(--color-primary);
+      font-size: 1.1em;
+    }
+    .glossary-entry {
+      margin-bottom: var(--spacing-lg);
+      padding-bottom: var(--spacing-md);
+      border-bottom: 1px solid var(--color-border);
+    }
+    .glossary-entry:last-child {
+      border-bottom: none;
+    }
+    .see-also {
+      font-size: 0.9em;
+      color: var(--color-text-muted);
+    }
+  </style>
+</head>
+<body>
+
+<h1>Agent Ops Glossary</h1>
+
+<p>Quick reference for key terms. Print this out and keep it handy.</p>
+
+<hr>
+
+<h2>Architecture Terms</h2>
+
+<div class="glossary-entry">
+  <p class="glossary-term">Agent</p>
+  <p>A program that can receive instructions, think, take actions, and report results. Examples: code assistant, support bot, data analyzer.</p>
+</div>
+
+<div class="glossary-entry">
+  <p class="glossary-term">AgentRuntime</p>
+  <p>A <em>running instance</em> of an agent. The AgentRuntime is what you see in the dashboard — it represents the live container with its status, endpoints, and health.</p>
+  <p class="see-also">Related: Sandbox CR (1:1 mapping)</p>
+</div>
+
+<div class="glossary-entry">
+  <p class="glossary-term">BFF (Backend-for-Frontend)</p>
+  <p>A Go server that sits between the browser and Kubernetes. It handles authentication, business logic, and translates between the UI and the cluster. The browser cannot talk directly to Kubernetes.</p>
+  <p class="see-also">Location: <code>packages/agent-ops/bff/</code></p>
+</div>
+
+<div class="glossary-entry">
+  <p class="glossary-term">Sandbox CR (Custom Resource)</p>
+  <p>A Kubernetes object that defines a secure, isolated execution environment for one agent. When you create a Sandbox CR, Kubernetes automatically creates the Pod and Service. Each Sandbox CR = one AgentRuntime.</p>
+  <p class="see-also">API Group: <code>agents.x-k8s.io/v1beta1/sandboxes</code></p>
+</div>
+
+<div class="glossary-entry">
+  <p class="glossary-term">OpenAPI Spec (Contract)</p>
+  <p>A YAML file that describes the API: endpoints, parameters, request/response shapes. The frontend and BFF both follow this contract. If they disagree, the spec is the source of truth.</p>
+  <p class="see-also">Location: <code>packages/agent-ops/api/openapi/agent-ops.yaml</code></p>
+</div>
+
+<div class="glossary-entry">
+  <p class="glossary-term">Module Federation</p>
+  <p>A webpack feature that lets multiple applications share code at runtime. Agent Ops is a "remote" module that gets loaded into the main RHOAI dashboard (the "host").</p>
+</div>
+
+<h2>OpenShell Terms (Track 3)</h2>
+
+<div class="glossary-entry">
+  <p class="glossary-term">OpenShell</p>
+  <p>A platform for running agents in governed, secure sandboxes. It has its own control plane (gateway) separate from Kubernetes. OpenShell enforces security policies and manages agent lifecycles.</p>
+</div>
+
+<div class="glossary-entry">
+  <p class="glossary-term">Gateway</p>
+  <p>The OpenShell server that manages workspaces, policies, and sandboxes. It exposes a gRPC API. The BFF talks to the gateway via the Go SDK.</p>
+  <p class="see-also">⚠️ Does NOT exist in RHOAI yet (RHAISTRAT-1752)</p>
+</div>
+
+<div class="glossary-entry">
+  <p class="glossary-term">Workspace</p>
+  <p>An isolation boundary in OpenShell. A workspace contains sandboxes, providers, policies, and members. Think of it as a "tenant" — controls who can access what.</p>
+</div>
+
+<div class="glossary-entry">
+  <p class="glossary-term">Policy</p>
+  <p>Security rules enforced on sandboxes: network policies, allowed binaries/paths, filesystem access. Policies use Landlock and seccomp, NOT OPA/Rego.</p>
+</div>
+
+<div class="glossary-entry">
+  <p class="glossary-term">Provider</p>
+  <p>A registered inference endpoint with credentials (e.g., OpenAI API key, Anthropic key). The BFF strips secret values — the browser never sees actual credentials.</p>
+</div>
+
+<div class="glossary-entry">
+  <p class="glossary-term">Interceptor</p>
+  <p>A webhook-like mechanism that enforces default policies across all sandboxes. Platform admins use interceptors to set org-wide security baselines.</p>
+</div>
+
+<div class="glossary-entry">
+  <p class="glossary-term">Double-Auth</p>
+  <p>The authentication flow for embedded OpenShell UI. User logs into RHOAI (primary session), then a second OpenShell-scoped token is obtained against shared Keycloak and forwarded to the gateway.</p>
+</div>
+
+<h2>Jira Terms</h2>
+
+<div class="glossary-entry">
+  <p class="glossary-term">Strategy (RHAISTRAT)</p>
+  <p>Multi-release vision. The big picture. Example: "Agents UI in AI Hub" spanning 3.5, 3.6, 3.7 releases.</p>
+</div>
+
+<div class="glossary-entry">
+  <p class="glossary-term">Feature (RHAISTRAT or RHAIRFE)</p>
+  <p>One release deliverable. A significant capability that ships in one release. Example: "Deploy agents from Dashboard" (3.6).</p>
+</div>
+
+<div class="glossary-entry">
+  <p class="glossary-term">Epic (RHOAIENG)</p>
+  <p>A logical grouping of stories. Usually split by area (BFF vs UI) or phase. Example: "Deploy BFF" or "Deploy UI".</p>
+</div>
+
+<div class="glossary-entry">
+  <p class="glossary-term">Story (RHOAIENG)</p>
+  <p>One implementable unit of work. Usually results in 1-3 PRs. Written as "As a [user], I can [action]..."</p>
+</div>
+
+<div class="glossary-entry">
+  <p class="glossary-term">Hard-Gated / Blocked</p>
+  <p>A feature that CANNOT ship until a specific dependency is met. Not just "nice to have" — literally impossible to ship without it.</p>
+</div>
+
+<h2>Module Federation & Proxy Terms</h2>
+
+<div class="glossary-entry">
+  <p class="glossary-term">Proxy</p>
+  <p>A middleman server that receives a request, modifies it (e.g., rewrites the URL path, adds auth headers), and forwards it to another server. The browser talks to the proxy; the proxy talks to the real backend. This lets you keep the backend on a different port or machine without the browser knowing.</p>
+  <p class="see-also">Related: pathRewrite, authorize</p>
+</div>
+
+<div class="glossary-entry">
+  <p class="glossary-term">pathRewrite</p>
+  <p>A proxy rule that changes the URL path before forwarding. For example, <code>/_bff/openshell/api</code> is rewritten to <code>/api</code> so the BFF doesn't need to know about the host's routing prefix.</p>
+</div>
+
+<div class="glossary-entry">
+  <p class="glossary-term">remoteEntry.js</p>
+  <p>A JavaScript file generated by webpack/rspack that acts as the "table of contents" for a Module Federation remote. The host fetches this file to discover what components the remote module exposes.</p>
+</div>
+
+<div class="glossary-entry">
+  <p class="glossary-term">Singleton (MF)</p>
+  <p>A Module Federation setting that ensures only one copy of a library (like React) is loaded at runtime. Without it, the host and module would each load their own copy, causing crashes.</p>
+</div>
+
+<div class="glossary-entry">
+  <p class="glossary-term">Remote / Host</p>
+  <p><strong>Host</strong> = the main dashboard app that loads other modules. <strong>Remote</strong> = a module that gets loaded into the host (e.g., agent-ops, model-registry, openshell). Remotes expose components via <code>remoteEntry.js</code>.</p>
+</div>
+
+<div class="glossary-entry">
+  <p class="glossary-term">Spike</p>
+  <p>A time-boxed research task. No production code is written. The engineer investigates feasibility, documents findings, and recommends an approach. Example: "Can we embed OpenShell in the dashboard? What breaks?"</p>
+</div>
+
+<div class="glossary-entry">
+  <p class="glossary-term">iframe</p>
+  <p>An HTML element that embeds an entire webpage inside another webpage, like picture-in-picture. Rejected for OpenShell because it doesn't share auth, styling, or navigation with the parent page.</p>
+</div>
+
+<div class="glossary-entry">
+  <p class="glossary-term">SPA (Single Page Application)</p>
+  <p>A web app that loads once and then updates the page dynamically without full page reloads. React apps are SPAs. OpenShell standalone is an SPA; when embedded in the dashboard, it becomes a federated remote instead.</p>
+</div>
+
+<div class="glossary-entry">
+  <p class="glossary-term">gRPC</p>
+  <p>A communication protocol (like HTTP but different). The OpenShell BFF uses gRPC to talk to the OpenShell gateway. You don't interact with gRPC directly — the BFF handles it. The browser only uses regular HTTP.</p>
+</div>
+
+<div class="glossary-entry">
+  <p class="glossary-term">Sidecar</p>
+  <p>A helper container that runs alongside the main application container in the same Kubernetes pod. The OpenShell BFF runs as a sidecar to the dashboard — it has its own process but is deployed together.</p>
+</div>
+
+<h2>Development Terms</h2>
+
+<div class="glossary-entry">
+  <p class="glossary-term">Contract-First Development</p>
+  <p>Write the OpenAPI spec FIRST, then implement code that matches it. Prevents frontend/backend mismatch bugs.</p>
+</div>
+
+<div class="glossary-entry">
+  <p class="glossary-term">Tech Preview (TP)</p>
+  <p>A feature that's available but not fully supported. Can have bugs, API may change. Not for production use.</p>
+</div>
+
+<div class="glossary-entry">
+  <p class="glossary-term">GA (Generally Available)</p>
+  <p>A feature that's fully supported and production-ready. API is stable.</p>
+</div>
+
+<div class="glossary-entry">
+  <p class="glossary-term">validate:ports</p>
+  <p>An npm script (<code>npm run validate:ports</code>) that checks every module's <code>package.json</code> for port conflicts. If two modules use the same port, the script fails. Runs automatically in pre-commit hooks and CI.</p>
+  <p class="see-also">Location: <code>scripts/validate-module-ports.js</code></p>
+</div>
+
+<div class="glossary-entry">
+  <p class="glossary-term">PatternFly (PF)</p>
+  <p>Red Hat's UI component library. Provides buttons, tables, forms, etc. RHOAI uses PatternFly v6.</p>
+  <p class="see-also">Docs: <a href="https://www.patternfly.org/v6/">patternfly.org/v6/</a></p>
+</div>
+
+<h2>API Operations Quick Reference</h2>
+
+<table>
+  <thead>
+    <tr><th>Operation</th><th>Method</th><th>Endpoint</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>List agents</td><td>GET</td><td><code>/api/v1/agents/runtimes</code></td></tr>
+    <tr><td>Get agent detail</td><td>GET</td><td><code>/api/v1/agents/runtimes/{ns}/{name}</code></td></tr>
+    <tr><td>Deploy agent</td><td>POST</td><td><code>/api/v1/agents/deploy</code></td></tr>
+    <tr><td>Stop agent</td><td>POST</td><td><code>/api/v1/agents/runtimes/{ns}/{name}/stop</code></td></tr>
+    <tr><td>Start agent</td><td>POST</td><td><code>/api/v1/agents/runtimes/{ns}/{name}/start</code></td></tr>
+    <tr><td>Restart agent</td><td>POST</td><td><code>/api/v1/agents/runtimes/{ns}/{name}/restart</code></td></tr>
+    <tr><td>Delete agent</td><td>DELETE</td><td><code>/api/v1/agents/runtimes/{ns}/{name}</code></td></tr>
+  </tbody>
+</table>
+
+<hr>
+
+<p><em>Last updated: Sep 1, 2026 (added MF/proxy terms in session 4)</em></p>
+
+</body>
+</html>

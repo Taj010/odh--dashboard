@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lesson 4: Reading Ticket 89723</title>
+  <link rel="stylesheet" href="../assets/styles.css">
+  <style>
+    .ac-box {
+      border-left: 4px solid var(--color-primary);
+      padding: var(--spacing-md);
+      margin: var(--spacing-lg) 0;
+      background: var(--color-surface);
+    }
+    .ac-box h3 { margin-top: 0; }
+    .file-list { font-family: var(--font-mono); font-size: 0.85em; }
+    .verify { color: var(--color-success); font-weight: 600; }
+    details { margin: var(--spacing-sm) 0; }
+    summary { cursor: pointer; font-weight: 600; }
+  </style>
+</head>
+<body>
+
+<h1>Lesson 4: Reading Ticket 89723 Line by Line</h1>
+
+<p><strong>Goal:</strong> Turn each acceptance criterion in <a href="https://redhat.atlassian.net/browse/RHOAIENG-89723">RHOAIENG-89723</a> into concrete files to create, patterns to copy, and a way to verify you're done.</p>
+
+<nav class="lesson-nav" aria-label="Lesson navigation">
+  <a href="./index.html" class="lesson-nav-index">All lessons</a>
+  <a href="./0003-openshell-two-epics.html" class="lesson-nav-prev">← Lesson 3: Two epics</a>
+  <a href="./0005-host-wrapper-and-mock-bff.html" class="lesson-nav-next">Lesson 5: Host wrapper →</a>
+</nav>
+
+<p><a href="../reference/89723-file-checklist.html">Printable checklist</a></p>
+
+<h2>Before You Start</h2>
+
+<p>89723 says: <em>mock BFF responses are acceptable; live gateway not required.</em> Your job is the <strong>host wrapper</strong> around upstream OpenShell pages — same idea as model-registry (import upstream UI) plus agent-ops (nav in the Agents area).</p>
+
+<table>
+  <thead>
+    <tr><th>Copy from</th><th>Why</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>packages/model-registry/</code></td>
+      <td>Upstream UI imported into a federated package; <code>exports["./extensions"]</code></td>
+    </tr>
+    <tr>
+      <td><code>packages/agent-ops/frontend/src/odh/</code></td>
+      <td>Tabs, routes, feature flags in the AI Hub / Agents area</td>
+    </tr>
+    <tr>
+      <td>Spike branch <code>RHOAIENG-81066/openshell-ui-mf</code></td>
+      <td>Proven OpenShell-specific wrapper (providers, <code>setApiBasePath</code>)</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>The Package You'll Create</h2>
+
+<div class="diagram">
+packages/openshell/
+├── package.json              ← module-federation + exports
+├── extensions.ts             ← re-export odh extensions (optional root)
+└── frontend/
+    ├── config/moduleFederation.js
+    └── src/odh/
+        ├── extensions.ts     ← nav, routes, feature flag area
+        ├── OpenShellWrapper.tsx
+        ├── OpenShellRoutes.tsx
+        └── OpenShellFederatedProviders.tsx
+</div>
+
+<p>The host <strong>auto-discovers</strong> any workspace package with <code>exports["./extensions"]</code>. You do <em>not</em> manually edit a central route file in <code>frontend/src/routes/</code>.</p>
+
+<h2>Section A — Navigation &amp; Discoverability</h2>
+
+<div class="ac-box">
+  <h3>AC: Feature flag ON → OpenShell nav entry visible</h3>
+  <p><strong>What it means:</strong> When <code>openshell</code> (or agreed flag) is enabled, user sees a way into OpenShell workspaces/sandboxes.</p>
+
+  <p><strong>Files to touch:</strong></p>
+  <ul class="file-list">
+    <li><code>packages/openshell/frontend/src/odh/extensions.ts</code> — register <code>app.area</code> + tab or nav</li>
+    <li><code>frontend/src/concepts/areas/const.ts</code> — map area → feature flag</li>
+    <li><code>packages/plugin-core/src/areas/types.ts</code> — add <code>SupportedArea</code> enum value</li>
+  </ul>
+
+  <p><strong>Pattern (from agent-ops):</strong></p>
+  <pre><code>// extensions.ts — register the area + feature flag
+{
+  type: 'app.area',
+  properties: {
+    id: 'openshell',
+    featureFlags: ['openshell'],
+  },
+},
+{
+  type: 'app.tab-route/tab',
+  flags: { required: ['openshell'] },
+  properties: {
+    pageId: 'agents-tab-page',  // same Agents tab page as Deployments
+    id: 'openshell-workspaces',
+    title: 'Workspaces',       // or "OpenShell" — confirm with design
+    component: () => import('./OpenShellWrapper'),
+    group: '2_openshell',
+  },
+}</code></pre>
+
+  <p class="verify">Verify: enable flag in dev → Agents section shows new tab. Disable flag → tab gone.</p>
+</div>
+
+<div class="ac-box">
+  <h3>AC: Feature flag OFF → no OpenShell nav or accidental routes</h3>
+  <p><strong>What it means:</strong> Every OpenShell extension uses <code>flags: { required: ['openshell'] }</code>. No orphan routes without the flag.</p>
+
+  <p><strong>Files:</strong> Same <code>extensions.ts</code> — every <code>app.route</code> and <code>app.tab-route/tab</code> entry must have the flag.</p>
+
+  <p class="verify">Verify: flag off → direct URL <code>/ai-hub/agents/openshell/...</code> should not render OpenShell (404 or redirect).</p>
+</div>
+
+<div class="ac-box">
+  <h3>AC: Click nav → bookmarkable URL in dashboard shell</h3>
+  <p><strong>What it means:</strong> URL bar shows a stable path like <code>/ai-hub/agents/openshell/workspaces</code> (exact path TBD in PR — ticket says e.g. <code>/.../openshell/workspaces</code>).</p>
+
+  <p><strong>Files:</strong></p>
+  <ul class="file-list">
+    <li><code>extensions.ts</code> — <code>app.route</code> with explicit <code>path</code></li>
+    <li><code>OpenShellRoutes.tsx</code> — internal React Router for list ↔ detail</li>
+  </ul>
+
+  <p><strong>Pattern:</strong> Host owns the outer route; your wrapper owns nested routes (list at <code>workspaces</code>, detail at <code>workspaces/:id</code>).</p>
+
+  <p class="verify">Verify: copy URL, paste in new tab → same page loads inside dashboard chrome.</p>
+</div>
+
+<h2>Section B — Workspace List</h2>
+
+<div class="ac-box">
+  <h3>AC: List page loads with columns/labels (not blank / 404)</h3>
+  <p><strong>What it means:</strong> Mount upstream workspace list page inside your wrapper. Data comes from mocked BFF.</p>
+
+  <p><strong>Files:</strong></p>
+  <ul class="file-list">
+    <li><code>OpenShellWrapper.tsx</code> — providers shell</li>
+    <li><code>OpenShellFederatedProviders.tsx</code> — QueryClient, AlertProvider, <code>setApiBasePath('/openshell')</code></li>
+    <li><code>OpenShellRoutes.tsx</code> — <code>import { WorkspaceListPage } from 'openshell-dashboard/pages'</code> (package name TBD)</li>
+    <li><code>packages/openshell/bff/</code> or dev mock — return sample JSON for <code>GET /api/v1/workspaces</code></li>
+  </ul>
+
+  <p class="verify">Verify: page shows table headers or empty-state component from upstream — not a white screen.</p>
+</div>
+
+<div class="ac-box">
+  <h3>AC: Empty list → empty state, not error banner</h3>
+  <p><strong>What it means:</strong> Mock BFF returns <code>{ "items": [] }</code> (or whatever upstream spec says). Upstream page should render its empty state.</p>
+
+  <p><strong>Files:</strong> BFF mock handler or webpack dev intercept.</p>
+
+  <p class="verify">Verify: toggle mock to return <code>[]</code> → friendly empty message, no red alert.</p>
+</div>
+
+<div class="ac-box">
+  <h3>AC: Non-empty list → can open a workspace</h3>
+  <p><strong>What it means:</strong> Row click or link calls your <code>onViewSandbox</code> callback (from spike 81066) to navigate to detail.</p>
+
+  <p><strong>Files:</strong> <code>OpenShellRoutes.tsx</code> — wire <code>onViewSandbox</code> → <code>navigate(`/.../workspaces/${id}`)</code></p>
+
+  <p class="verify">Verify: click row → URL changes → detail route loads.</p>
+</div>
+
+<h2>Section C — Sandbox Detail</h2>
+
+<div class="ac-box">
+  <h3>AC: Detail view shows upstream content in dashboard shell</h3>
+  <p><strong>What it means:</strong> Import upstream sandbox detail page; wrap with same providers as list.</p>
+
+  <p><strong>Files:</strong> <code>OpenShellRoutes.tsx</code> — detail route imports upstream detail page component.</p>
+
+  <p class="verify">Verify: header/tabs/panels visible, styled (PatternFly), not an unstyled fragment.</p>
+</div>
+
+<div class="ac-box">
+  <h3>AC: Browser back/forward works without full page reload</h3>
+  <p><strong>What it means:</strong> Use React Router inside the wrapper — not <code>window.location</code> to external URLs.</p>
+
+  <p><strong>Files:</strong> <code>OpenShellRoutes.tsx</code> — <code>&lt;Routes&gt;</code> with list + detail paths.</p>
+
+  <p class="verify">Verify: list → detail → browser Back → list, still inside dashboard shell.</p>
+</div>
+
+<h2>Section D — API Proxy</h2>
+
+<div class="ac-box">
+  <h3>AC: Local dev → browser calls <code>/openshell/api/...</code> on host origin</h3>
+  <p><strong>What it means:</strong> No hard-coded <code>localhost:8943</code> in frontend code. API client uses relative paths; host proxy forwards to BFF.</p>
+
+  <p><strong>Files:</strong></p>
+  <ul class="file-list">
+    <li><code>packages/openshell/package.json</code> — <code>module-federation.proxy</code> block</li>
+    <li>Upstream API init — <code>setApiBasePath('/openshell')</code> so fetches hit <code>/openshell/api/...</code></li>
+  </ul>
+
+  <p><strong>Pattern (from agent-ops):</strong></p>
+  <pre><code>// packages/openshell/package.json
+"module-federation": {
+  "name": "openshell",
+  "authorize": true,
+  "proxy": [
+    {
+      "path": "/openshell/api",
+      "pathRewrite": "/api"
+    }
+  ],
+  "local": { "port": 9113 },
+  "service": { "name": "odh-dashboard", "port": 8943 }
+}</code></pre>
+
+  <p>The dashboard backend reads every package's <code>module-federation</code> block and registers proxies automatically (<code>backend/src/routes/module-federation.ts</code>).</p>
+
+  <p class="verify">Verify: DevTools Network tab → requests go to <code>https://localhost:4010/openshell/api/...</code> (host), not an external origin.</p>
+</div>
+
+<div class="ac-box">
+  <h3>AC: Health path registered; <code>npm run validate:ports</code> passes</h3>
+  <p><strong>What it means:</strong> Port <strong>9113</strong> (local dev) and <strong>8943</strong> (sidecar) must not collide with other modules. Proxy includes readyz if needed.</p>
+
+  <p><strong>Files:</strong> <code>packages/openshell/package.json</code> only (for port validation in this ticket — cluster manifests are 89740).</p>
+
+  <p class="verify">Verify: run <code>npm run validate:ports</code> from repo root — no duplicate port errors.</p>
+</div>
+
+<h2>Section E — Regression / CI</h2>
+
+<div class="ac-box">
+  <h3>AC: PR touching <code>packages/openshell/</code> → federated build succeeds</h3>
+  <p><strong>What it means:</strong> <code>remoteEntry.js</code> and <code>./extensions</code> export compile in CI.</p>
+
+  <p><strong>Files:</strong> Standard package scripts — <code>npm run build</code> in frontend, workspace included in root turbo pipeline.</p>
+
+  <p class="verify">Verify locally: <code>cd packages/openshell/frontend && npm run build</code> (or package's federated build script).</p>
+</div>
+
+<h2>What You Do NOT Build in 89723</h2>
+
+<table>
+  <thead>
+    <tr><th>Out of scope</th><th>Ticket</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Cluster sidecar manifests</td><td>89740</td></tr>
+    <tr><td>Real BFF image + auth bridge</td><td>89726</td></tr>
+    <tr><td>Dual-auth banner, session UX, Cypress</td><td>89741</td></tr>
+    <tr><td>Live gateway data</td><td>Stretch / 89726</td></tr>
+  </tbody>
+</table>
+
+<h2>Suggested Implementation Order</h2>
+
+<ol>
+  <li>Scaffold <code>packages/openshell/</code> (copy structure from agent-ops + spike branch)</li>
+  <li><code>package.json</code> module-federation block + <code>exports</code></li>
+  <li>Register <code>app.area</code> + <code>SupportedArea</code> in host</li>
+  <li>Wrapper + providers (empty page first)</li>
+  <li>Mount upstream list page with mock data</li>
+  <li>Add detail route + <code>onViewSandbox</code> navigation</li>
+  <li>Confirm proxy in Network tab + <code>validate:ports</code></li>
+  <li>Smoke build</li>
+</ol>
+
+<h2>Practice: Match AC to File</h2>
+
+<div class="quiz">
+  <p class="quiz-question">1. Where do you register the OpenShell feature flag gate?</p>
+  <ul class="quiz-options" data-answer="b">
+    <li data-option="a">frontend/src/App.tsx manually</li>
+    <li data-option="b">odh extensions.ts plus areas/const.ts</li>
+    <li data-option="c">Kubernetes deployment.yaml only</li>
+    <li data-option="d">Upstream openshell-dashboard repo</li>
+  </ul>
+</div>
+
+<div class="quiz">
+  <p class="quiz-question">2. Where is the API proxy path configured?</p>
+  <ul class="quiz-options" data-answer="c">
+    <li data-option="a">frontend/webpack.config.js hard-coded</li>
+    <li data-option="b">openshell-dashboard package.json only</li>
+    <li data-option="c">packages/openshell/package.json module-federation</li>
+    <li data-option="d">Jira ticket description text</li>
+  </ul>
+</div>
+
+<div class="quiz">
+  <p class="quiz-question">3. Can you close 89723 without a live gateway?</p>
+  <ul class="quiz-options" data-answer="a">
+    <li data-option="a">Yes — mocked BFF responses are acceptable</li>
+    <li data-option="b">No — gateway must be deployed first</li>
+    <li data-option="c">No — 89726 must merge first</li>
+    <li data-option="d">Only if Derek finishes Epic 2 first</li>
+  </ul>
+</div>
+
+<script>
+document.querySelectorAll('.quiz-options').forEach(ul => {
+  const answer = ul.dataset.answer;
+  ul.querySelectorAll('li').forEach(li => {
+    li.addEventListener('click', () => {
+      ul.querySelectorAll('li').forEach(l => l.classList.remove('correct', 'incorrect'));
+      if (li.dataset.option === answer) {
+        li.classList.add('correct');
+      } else {
+        li.classList.add('incorrect');
+        ul.querySelector(`[data-option="${answer}"]`).classList.add('correct');
+      }
+    });
+  });
+});
+</script>
+
+<h2>What's Next?</h2>
+
+<ul>
+  <li><strong><a href="./0005-host-wrapper-and-mock-bff.html">Lesson 5:</a></strong> Host wrapper deep dive — providers, callbacks, and mock BFF</li>
+  <li><strong>Do now:</strong> Check out spike branch and diff <code>packages/openshell-spike/</code> against this lesson's file list</li>
+</ul>
+
+<hr>
+
+<p><em>Stuck on one AC line? Paste it in chat — we'll map it to exact code.</em></p>
+
+<nav class="lesson-nav lesson-nav-footer" aria-label="Lesson navigation">
+  <a href="./index.html" class="lesson-nav-index">All lessons</a>
+  <a href="./0003-openshell-two-epics.html" class="lesson-nav-prev">← Lesson 3: Two epics</a>
+  <a href="./0005-host-wrapper-and-mock-bff.html" class="lesson-nav-next">Lesson 5: Host wrapper →</a>
+</nav>
+
+</body>
+</html>

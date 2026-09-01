@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lesson 5: The Host Wrapper &amp; Mock BFF</title>
+  <link rel="stylesheet" href="../assets/styles.css">
+  <style>
+    .layer { border: 2px solid var(--color-border); border-radius: 6px; padding: var(--spacing-md); margin: var(--spacing-md) 0; }
+    .layer-label { font-weight: 700; font-size: 0.85em; text-transform: uppercase; color: var(--color-text-muted); margin-bottom: var(--spacing-xs); }
+    .code-note { font-size: 0.85em; color: var(--color-text-muted); margin-top: var(--spacing-xs); }
+    .step-num { display: inline-block; width: 28px; height: 28px; border-radius: 50%; background: var(--color-primary); color: #fff; text-align: center; line-height: 28px; font-weight: 700; font-size: 0.85em; margin-right: var(--spacing-sm); }
+  </style>
+</head>
+<body>
+
+<h1>Lesson 5: The Host Wrapper &amp; Mock BFF</h1>
+
+<p><strong>Goal:</strong> Understand the four layers of code that wrap upstream OpenShell pages inside odh-dashboard, and set up a mock BFF so data flows end-to-end in dev without a real gateway.</p>
+
+<nav class="lesson-nav" aria-label="Lesson navigation">
+  <a href="./index.html" class="lesson-nav-index">All lessons</a>
+  <a href="./0004-89723-acceptance-criteria.html" class="lesson-nav-prev">← Lesson 4: 89723 AC</a>
+</nav>
+
+<p>
+  <a href="../reference/glossary.html">Glossary</a> ·
+  <a href="../reference/89723-file-checklist.html">File checklist</a>
+</p>
+
+<h2>The Four Layers</h2>
+
+<p>When OpenShell renders inside the dashboard, four layers stack on top of each other — outermost first. Each one does <em>one job</em>.</p>
+
+<div class="layer">
+  <div class="layer-label">Layer 1 — Extensions (discovery)</div>
+  <p><code>extensions.ts</code></p>
+  <p>Tells the host: <em>"I exist, here's my feature flag, nav entry, and route."</em></p>
+  <p>The host calls this at build-time. No React renders here — only metadata objects.</p>
+</div>
+
+<div class="layer">
+  <div class="layer-label">Layer 2 — Wrapper (providers)</div>
+  <p><code>OpenShellWrapper.tsx</code></p>
+  <p>Wraps everything in the providers upstream pages need: QueryClient, ModularArch context, alerts, storage.</p>
+  <p>Think of it as the "environment setup" — like plugging in power and internet before you turn on a computer.</p>
+</div>
+
+<div class="layer">
+  <div class="layer-label">Layer 3 — Routes (navigation)</div>
+  <p><code>OpenShellRoutes.tsx</code></p>
+  <p>React Router <code>&lt;Routes&gt;</code> inside the wrapper. Maps URL paths to pages.</p>
+  <p><code>/</code> → workspace list, <code>/:id</code> → sandbox detail, <code>*</code> → redirect.</p>
+</div>
+
+<div class="layer">
+  <div class="layer-label">Layer 4 — Upstream pages (UI)</div>
+  <p>Imported from <code>openshell-dashboard</code></p>
+  <p>The actual list and detail components. You don't write these — you <code>import</code> them and pass callbacks.</p>
+</div>
+
+<h2>How They Stack (Code)</h2>
+
+<p>This is the call chain from host to pixels:</p>
+
+<div class="diagram">
+Host auto-discovers extensions.ts
+    ↓
+Host renders tab component → OpenShellWrapper
+    ↓ wraps children in providers
+OpenShellRoutes
+    ↓ matches URL
+Upstream WorkspaceListPage or SandboxDetailPage
+    ↓ fetches /openshell/api/v1/workspaces
+Mock BFF returns JSON
+</div>
+
+<h2>Layer 1: <code>extensions.ts</code></h2>
+
+<p>This is the <strong>entry point</strong> the host discovers. It's a plain array of metadata objects — no JSX, no hooks. Pattern copied from <code>packages/agent-ops/frontend/src/odh/extensions.ts</code>.</p>
+
+<pre><code>// packages/openshell/frontend/src/odh/extensions.ts
+
+import type {
+  AreaExtension,
+  TabRouteTabExtension,
+} from '@odh-dashboard/plugin-core/extension-points';
+
+const OPENSHELL = 'openshell';
+const AGENTS_TAB_PAGE = 'agents-tab-page';  // same page ID as agent-ops Deployments tab
+
+const extensions: (AreaExtension | TabRouteTabExtension)[] = [
+  // 1. Register the feature-flag area
+  {
+    type: 'app.area',
+    properties: {
+      id: OPENSHELL,
+      featureFlags: ['openshell'],
+    },
+  },
+  // 2. Add a tab under the Agents page
+  {
+    type: 'app.tab-route/tab',
+    flags: { required: [OPENSHELL] },
+    properties: {
+      pageId: AGENTS_TAB_PAGE,
+      id: 'openshell-workspaces',
+      title: 'Workspaces',
+      component: () => import('./OpenShellWrapper'),
+      group: '2_openshell',
+    },
+  },
+];
+
+export default extensions;</code></pre>
+
+<p class="code-note"><strong>Key detail:</strong> <code>pageId: 'agents-tab-page'</code> is defined in the host's navigation extensions. Agent-ops adds a "Deployments" tab to it; you add a "Workspaces" tab. Same parent page, separate tabs.</p>
+
+<h2>Layer 2: <code>OpenShellWrapper.tsx</code> — Providers</h2>
+
+<p>This is where you set up the <strong>environment</strong> that upstream pages expect. Think of each provider as an answer to a question the upstream code will ask:</p>
+
+<table>
+  <thead>
+    <tr><th>Provider</th><th>Question it answers</th><th>Why OpenShell needs it</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>ModularArchContextProvider</code></td>
+      <td>"What mode am I in? What's my API prefix?"</td>
+      <td>Tells upstream <code>URL_PREFIX = '/openshell'</code> so all API calls hit <code>/openshell/api/v1/...</code></td>
+    </tr>
+    <tr>
+      <td><code>QueryClientProvider</code></td>
+      <td>"Where do I cache server data?"</td>
+      <td>TanStack Query v5 — kept module-local (host uses v4)</td>
+    </tr>
+    <tr>
+      <td><code>BrowserStorageContextProvider</code></td>
+      <td>"Where do I save user preferences?"</td>
+      <td>Column widths, table settings, etc.</td>
+    </tr>
+    <tr>
+      <td><code>NotificationContextProvider</code></td>
+      <td>"How do I show toast alerts?"</td>
+      <td>Success/error banners for actions</td>
+    </tr>
+  </tbody>
+</table>
+
+<pre><code>// packages/openshell/frontend/src/odh/OpenShellWrapper.tsx
+
+import * as React from 'react';
+import { QueryClientProvider, QueryClient } from '@tanstack/react-query';
+import {
+  BrowserStorageContextProvider,
+  DeploymentMode,
+  ModularArchConfig,
+  ModularArchContextProvider,
+  NotificationContextProvider,
+} from 'mod-arch-core';
+import OpenShellRoutes from './OpenShellRoutes';
+
+const URL_PREFIX = '/openshell';
+
+const modularArchConfig: ModularArchConfig = {
+  deploymentMode: DeploymentMode.Federated,
+  URL_PREFIX,
+  BFF_API_VERSION: 'v1',
+};
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false,
+      retry: 1,
+      staleTime: 30_000,
+    },
+  },
+});
+
+const OpenShellWrapper: React.FC = () =&gt; (
+  &lt;ModularArchContextProvider config={modularArchConfig}&gt;
+    &lt;BrowserStorageContextProvider&gt;
+      &lt;NotificationContextProvider&gt;
+        &lt;QueryClientProvider client={queryClient}&gt;
+          &lt;OpenShellRoutes /&gt;
+        &lt;/QueryClientProvider&gt;
+      &lt;/NotificationContextProvider&gt;
+    &lt;/BrowserStorageContextProvider&gt;
+  &lt;/ModularArchContextProvider&gt;
+);
+
+export default OpenShellWrapper;</code></pre>
+
+<p class="code-note"><strong>URL_PREFIX</strong> is the critical line. It makes every API call from upstream components start with <code>/openshell/api/v1/...</code>. The host proxy (configured in <code>package.json</code>) then forwards those to the BFF sidecar on port 8943.</p>
+
+<h3>Comparing: agent-ops vs OpenShell wrapper</h3>
+
+<table>
+  <thead>
+    <tr><th>agent-ops</th><th>OpenShell</th><th>Why different</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>URL_PREFIX = '/agent-ops'</code></td>
+      <td><code>URL_PREFIX = '/openshell'</code></td>
+      <td>Each module gets its own proxy path</td>
+    </tr>
+    <tr>
+      <td>Uses <code>createAgentOpsQueryClient()</code></td>
+      <td>Uses a local <code>new QueryClient()</code></td>
+      <td>Same idea — module-local QueryClient, not shared with host</td>
+    </tr>
+    <tr>
+      <td>Renders <code>&lt;AppRoutes /&gt;</code></td>
+      <td>Renders <code>&lt;OpenShellRoutes /&gt;</code></td>
+      <td>Different pages, same wrapping pattern</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Layer 3: <code>OpenShellRoutes.tsx</code> — Navigation</h2>
+
+<p>This is where URLs map to pages. Upstream provides the page components; you connect them to React Router.</p>
+
+<pre><code>// packages/openshell/frontend/src/odh/OpenShellRoutes.tsx
+
+import * as React from 'react';
+import { Navigate, Route, Routes } from 'react-router-dom';
+
+// These imports come from upstream openshell-dashboard
+// Exact export names depend on what upstream publishes
+const WorkspaceListPage = React.lazy(
+  () => import('openshell-dashboard/pages/WorkspaceListPage')
+);
+const SandboxDetailPage = React.lazy(
+  () => import('openshell-dashboard/pages/SandboxDetailPage')
+);
+
+const OpenShellRoutes: React.FC = () =&gt; (
+  &lt;React.Suspense fallback={&lt;div&gt;Loading...&lt;/div&gt;}&gt;
+    &lt;Routes&gt;
+      &lt;Route index element={&lt;WorkspaceListPage /&gt;} /&gt;
+      &lt;Route path=":workspaceId" element={&lt;SandboxDetailPage /&gt;} /&gt;
+      &lt;Route path="*" element={&lt;Navigate to="." replace /&gt;} /&gt;
+    &lt;/Routes&gt;
+  &lt;/React.Suspense&gt;
+);
+
+export default OpenShellRoutes;</code></pre>
+
+<p class="code-note"><strong>Note:</strong> The exact import paths (<code>openshell-dashboard/pages/WorkspaceListPage</code>) depend on what the upstream repo publishes. Check the spike branch and upstream <code>package.json</code> exports to get the real paths.</p>
+
+<h3>Callback: <code>onViewSandbox</code></h3>
+
+<p>The spike (81066) documented that upstream list page expects an <code>onViewSandbox</code> callback for row clicks. You wire it to React Router's <code>navigate</code>:</p>
+
+<pre><code>import { useNavigate } from 'react-router-dom';
+
+const OpenShellWorkspaceList: React.FC = () =&gt; {
+  const navigate = useNavigate();
+  return (
+    &lt;WorkspaceListPage
+      onViewSandbox={(id: string) =&gt; navigate(id)}
+    /&gt;
+  );
+};</code></pre>
+
+<h2>Layer 4: Mock BFF — Making Data Flow</h2>
+
+<p>Without a mock, your pages will render empty or error because <code>/openshell/api/v1/workspaces</code> returns 404. You have three options for mocking:</p>
+
+<table>
+  <thead>
+    <tr><th>Option</th><th>How</th><th>Effort</th><th>Best for</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>A. Dev proxy intercept</strong></td>
+      <td>Rspack dev config intercept</td>
+      <td>Low</td>
+      <td>Quick iteration</td>
+    </tr>
+    <tr>
+      <td><strong>B. Minimal Go BFF</strong></td>
+      <td>Copy BFF skeleton, return static JSON</td>
+      <td>Medium</td>
+      <td>Closer to prod; reusable for 89726</td>
+    </tr>
+    <tr>
+      <td><strong>C. JSON fixture server</strong></td>
+      <td><code>npx json-server</code> or <code>serve</code> with static files</td>
+      <td>Low</td>
+      <td>Zero Go setup</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Option A: Dev Proxy Intercept (simplest)</h3>
+
+<p>In your local rspack dev config, add a middleware that intercepts <code>/openshell/api/*</code> and returns mock JSON:</p>
+
+<pre><code>// packages/openshell/frontend/config/rspack.dev.js  (excerpt)
+
+devServer: {
+  setupMiddlewares: (middlewares, devServer) =&gt; {
+    devServer.app.get('/openshell/api/v1/workspaces', (req, res) =&gt; {
+      res.json({
+        data: {
+          items: [
+            {
+              id: 'ws-001',
+              name: 'dev-sandbox',
+              status: 'Running',
+              createdAt: '2026-08-15T10:00:00Z',
+            },
+            {
+              id: 'ws-002',
+              name: 'staging-sandbox',
+              status: 'Stopped',
+              createdAt: '2026-08-20T14:30:00Z',
+            },
+          ],
+        },
+      });
+    });
+
+    devServer.app.get('/openshell/api/v1/workspaces/:id', (req, res) =&gt; {
+      res.json({
+        data: {
+          id: req.params.id,
+          name: `sandbox-${req.params.id}`,
+          status: 'Running',
+          createdAt: '2026-08-15T10:00:00Z',
+          // Add whatever fields upstream detail page expects
+        },
+      });
+    });
+
+    return middlewares;
+  },
+}</code></pre>
+
+<p class="code-note"><strong>Why this works:</strong> The frontend calls <code>/openshell/api/v1/workspaces</code>. In dev, rspack intercepts it before it tries to reach a real sidecar. You return hardcoded JSON that matches the expected shape.</p>
+
+<h3>Option B: Minimal Go BFF Stub</h3>
+
+<p>Copy the agent-ops BFF skeleton (<code>packages/agent-ops/bff/</code>) and strip it to a single healthcheck + workspace list handler. Add to your <code>Makefile</code>:</p>
+
+<pre><code># packages/openshell/Makefile
+dev-bff:
+    cd bff && go run ./cmd/main.go \
+      --port=4022 \
+      --mock-k8s-client \
+      --deployment-mode=standalone</code></pre>
+
+<p>This creates a real Go process returning mock data — useful if you want to test the proxy chain end-to-end locally.</p>
+
+<h3>Mock JSON Shape</h3>
+
+<p>Until Epic 2 story <a href="https://redhat.atlassian.net/browse/RHOAIENG-87985">87985</a> (API spec) lands, use the shapes from the spike and upstream code. A safe starting point:</p>
+
+<pre><code>{
+  "data": {
+    "items": [
+      {
+        "id": "ws-001",
+        "name": "my-workspace",
+        "status": "Running",
+        "createdAt": "2026-08-15T10:00:00Z",
+        "sandboxCount": 3
+      }
+    ]
+  }
+}</code></pre>
+
+<p class="code-note">When 87985 delivers the real OpenAPI spec, update your mocks to match. For now, match whatever the upstream list component renders (check its TypeScript types).</p>
+
+<h2>The Full Data Flow (dev mode)</h2>
+
+<div class="diagram">
+1. Browser renders OpenShellWrapper
+   ↓
+2. Upstream WorkspaceListPage calls useQuery('/openshell/api/v1/workspaces')
+   ↓
+3. Browser sends GET /openshell/api/v1/workspaces
+   ↓
+4a. [Option A] rspack dev middleware intercepts → returns mock JSON
+4b. [Option B] host proxy → Go BFF on :4022 → returns mock JSON
+   ↓
+5. React Query caches response → upstream component renders table
+</div>
+
+<h2>Putting It Together: Step-by-Step</h2>
+
+<ol>
+  <li><span class="step-num">1</span><strong>Scaffold <code>packages/openshell/</code></strong> — create folder, <code>package.json</code> with <code>module-federation</code> block</li>
+  <li><span class="step-num">2</span><strong><code>extensions.ts</code></strong> — area + tab (feature-flagged)</li>
+  <li><span class="step-num">3</span><strong><code>SupportedArea</code></strong> — add enum value + flag mapping in host</li>
+  <li><span class="step-num">4</span><strong><code>OpenShellWrapper.tsx</code></strong> — providers + URL_PREFIX</li>
+  <li><span class="step-num">5</span><strong><code>OpenShellRoutes.tsx</code></strong> — list + detail routes</li>
+  <li><span class="step-num">6</span><strong>Mock BFF</strong> — pick Option A, B, or C</li>
+  <li><span class="step-num">7</span><strong>Enable flag, start dev</strong> — see Workspaces tab, click through list → detail</li>
+  <li><span class="step-num">8</span><strong>Verify</strong> — all 89723 AC checked off</li>
+</ol>
+
+<h2>Common Mistakes to Avoid</h2>
+
+<table>
+  <thead>
+    <tr><th>Mistake</th><th>Why it breaks</th><th>Fix</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Hardcoding <code>localhost:8943</code> in fetch</td>
+      <td>Works in dev, fails in production (CORS, wrong host)</td>
+      <td>Use <code>URL_PREFIX</code> + proxy; let the host rewrite</td>
+    </tr>
+    <tr>
+      <td>Sharing QueryClient with host</td>
+      <td>Host uses TanStack v4, OpenShell uses v5 — runtime crash</td>
+      <td>Keep <code>QueryClient</code> module-local</td>
+    </tr>
+    <tr>
+      <td>Missing feature flag on a route</td>
+      <td>Route accessible even when OpenShell is disabled</td>
+      <td>Every extension entry needs <code>flags: { required: ['openshell'] }</code></td>
+    </tr>
+    <tr>
+      <td>Using <code>window.location</code> for navigation</td>
+      <td>Full page reload, breaks dashboard shell</td>
+      <td>Use React Router <code>navigate()</code></td>
+    </tr>
+    <tr>
+      <td>No <code>React.Suspense</code> around lazy imports</td>
+      <td>Blank screen while chunk loads</td>
+      <td>Wrap lazy components in <code>&lt;Suspense fallback={...}&gt;</code></td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Quiz</h2>
+
+<div class="quiz">
+  <p class="quiz-question">1. What does <code>URL_PREFIX = '/openshell'</code> control?</p>
+  <ul class="quiz-options" data-answer="b">
+    <li data-option="a">The filesystem path where files are saved</li>
+    <li data-option="b">The API path prefix for all BFF requests</li>
+    <li data-option="c">The Kubernetes namespace to deploy into</li>
+    <li data-option="d">The npm package name of the module</li>
+  </ul>
+</div>
+
+<div class="quiz">
+  <p class="quiz-question">2. Why is QueryClient kept module-local instead of shared with the host?</p>
+  <ul class="quiz-options" data-answer="c">
+    <li data-option="a">Sharing is too slow for performance</li>
+    <li data-option="b">The host doesn't use React Query at all</li>
+    <li data-option="c">Host uses TanStack Query v4; module uses v5</li>
+    <li data-option="d">Kubernetes doesn't allow shared clients</li>
+  </ul>
+</div>
+
+<div class="quiz">
+  <p class="quiz-question">3. What is the simplest way to get mock data flowing in dev for 89723?</p>
+  <ul class="quiz-options" data-answer="a">
+    <li data-option="a">Rspack dev middleware returning static JSON</li>
+    <li data-option="b">Deploying a real OpenShell gateway locally</li>
+    <li data-option="c">Waiting for Epic 2 to finish the Go BFF</li>
+    <li data-option="d">Hardcoding workspace data in React state</li>
+  </ul>
+</div>
+
+<div class="quiz">
+  <p class="quiz-question">4. What happens if you forget <code>flags: { required: ['openshell'] }</code> on a route?</p>
+  <ul class="quiz-options" data-answer="d">
+    <li data-option="a">The route shows a feature-flag error page</li>
+    <li data-option="b">The build fails with a lint error</li>
+    <li data-option="c">The host ignores the route entirely</li>
+    <li data-option="d">The route is visible even when OpenShell is off</li>
+  </ul>
+</div>
+
+<script>
+document.querySelectorAll('.quiz-options').forEach(ul => {
+  const answer = ul.dataset.answer;
+  ul.querySelectorAll('li').forEach(li => {
+    li.addEventListener('click', () => {
+      ul.querySelectorAll('li').forEach(l => l.classList.remove('correct', 'incorrect'));
+      if (li.dataset.option === answer) {
+        li.classList.add('correct');
+      } else {
+        li.classList.add('incorrect');
+        ul.querySelector(`[data-option="${answer}"]`).classList.add('correct');
+      }
+    });
+  });
+});
+</script>
+
+<h2>Primary Source</h2>
+
+<p>The best way to see these patterns live is to read the agent-ops package alongside this lesson:</p>
+
+<ul>
+  <li><strong>Extensions:</strong> <code>packages/agent-ops/frontend/src/odh/extensions.ts</code></li>
+  <li><strong>Wrapper:</strong> <code>packages/agent-ops/frontend/src/odh/AgentDeploymentsWrapper.tsx</code></li>
+  <li><strong>Providers:</strong> <code>packages/agent-ops/frontend/src/odh/AgentOpsFederatedProviders.tsx</code></li>
+  <li><strong>Routes:</strong> <code>packages/agent-ops/frontend/src/odh/AgentDeploymentsRoutes.tsx</code></li>
+  <li><strong>URL prefix:</strong> <code>packages/agent-ops/frontend/src/app/utilities/const.ts</code></li>
+</ul>
+
+<p>Then diff against the spike branch docs once you check it out.</p>
+
+<h2>What's Next</h2>
+
+<ul>
+  <li><strong><a href="./0006-package-json-deep-dive.html">Lesson 6:</a></strong> The <code>package.json</code> deep dive — module-federation block, proxy, ports, and <code>validate:ports</code></li>
+  <li><strong>Ready to code?</strong> Use the <a href="../reference/89723-file-checklist.html">file checklist</a> and start scaffolding</li>
+</ul>
+
+<hr>
+
+<p><em>Confused about a provider? Paste the error message and we'll trace it back to which layer is missing.</em></p>
+
+<nav class="lesson-nav lesson-nav-footer" aria-label="Lesson navigation">
+  <a href="./index.html" class="lesson-nav-index">All lessons</a>
+  <a href="./0004-89723-acceptance-criteria.html" class="lesson-nav-prev">← Lesson 4: 89723 AC</a>
+</nav>
+
+</body>
+</html>

@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lesson 7: The Spike Explainer</title>
+  <link rel="stylesheet" href="../assets/styles.css">
+  <style>
+    .decision-card { border: 2px solid var(--color-border); border-radius: 6px; padding: var(--spacing-md); margin: var(--spacing-md) 0; }
+    .decision-label { font-weight: 700; font-size: 0.85em; text-transform: uppercase; margin-bottom: var(--spacing-xs); }
+    .decision-label.locked { color: var(--color-success); }
+    .decision-label.rejected { color: var(--color-danger); }
+    .decision-label.deferred { color: var(--color-warning); }
+    .analogy-box { background: #f1f8ff; border-left: 4px solid var(--color-primary); padding: var(--spacing-md); margin: var(--spacing-md) 0; border-radius: 0 6px 6px 0; }
+    .analogy-box strong { color: var(--color-primary); }
+    .spike-section { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 6px; padding: var(--spacing-md); margin: var(--spacing-md) 0; }
+    .spike-section h4 { margin-top: 0; }
+    .risk-tag { display: inline-block; padding: 2px 8px; border-radius: 3px; font-size: 0.8em; font-weight: 600; }
+    .risk-low { background: #dcffe4; color: #22863a; }
+    .risk-high { background: #ffeef0; color: #cb2431; }
+    .flow-step { display: flex; align-items: flex-start; gap: var(--spacing-md); margin: var(--spacing-md) 0; }
+    .flow-num { flex-shrink: 0; width: 32px; height: 32px; border-radius: 50%; background: var(--color-primary); color: #fff; text-align: center; line-height: 32px; font-weight: 700; }
+    .flow-content { flex: 1; }
+  </style>
+</head>
+<body>
+
+<h1>Lesson 7: The Spike Explainer</h1>
+
+<p><strong>Goal:</strong> Understand what the <a href="https://github.com/danreed-rh/odh-dashboard/blob/RHOAIENG-81066/openshell-ui-mf/packages/openshell-spike/SPIKE.md">SPIKE.md</a> and <a href="https://github.com/danreed-rh/odh-dashboard/blob/RHOAIENG-81066/openshell-ui-mf/packages/openshell-spike/FEDERATION-STRATEGY.md">FEDERATION-STRATEGY.md</a> are really saying &mdash; in plain language.</p>
+
+<p>
+  <a href="./0006-package-json-deep-dive.html">&larr; Lesson 6: package.json</a> &middot;
+  <a href="../reference/glossary.html">Glossary</a>
+</p>
+
+<!-- ───────────── PART 1: WHAT IS A SPIKE? ───────────── -->
+
+<h2>Part 1: What Even Is a "Spike"?</h2>
+
+<p>A <strong>spike</strong> is a research task. No production code is written. Instead, an engineer (Dan Reed in this case) tries things out to answer questions like:</p>
+
+<ul>
+  <li>Can we actually import OpenShell's code into our dashboard?</li>
+  <li>What breaks when we try?</li>
+  <li>What's the best approach for production?</li>
+</ul>
+
+<p>The spike produced two documents:</p>
+
+<table>
+  <thead>
+    <tr><th>Document</th><th>What it is</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>SPIKE.md</strong></td>
+      <td>The raw findings &mdash; "here's what I tried, here's what happened"</td>
+    </tr>
+    <tr>
+      <td><strong>FEDERATION-STRATEGY.md</strong></td>
+      <td>The decisions &mdash; "based on the findings, here's what we'll do"</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="analogy-box">
+  <strong>Analogy:</strong> Imagine you're renovating a house and you need to decide how to connect new plumbing to the existing system. You'd hire a plumber to investigate (the spike): they check pipe sizes, water pressure, where things connect. Then they write a report saying "here's how we should do it" (the strategy). <em>You</em> then do the actual work following their plan.
+</div>
+
+<!-- ───────────── PART 2: THE BIG PICTURE ───────────── -->
+
+<h2>Part 2: The Big Picture Problem</h2>
+
+<p>OpenShell is a <strong>separate, standalone application</strong>. It has its own:</p>
+
+<ul>
+  <li>React frontend (its own SPA &mdash; Single Page Application)</li>
+  <li>Go backend (its own BFF)</li>
+  <li>Gateway server (the brain that manages workspaces/sandboxes)</li>
+</ul>
+
+<p>Our job is to <strong>embed parts of it inside the RHOAI dashboard</strong> so users don't have to open a separate website. They should see OpenShell workspaces as a tab in the existing Agent Hub page.</p>
+
+<p>The spike investigated: <em>what's the best way to do that?</em></p>
+
+<div class="diagram">
+BEFORE (standalone):
+  User opens openshell.example.com
+    → OpenShell React SPA
+    → OpenShell Go BFF
+    → OpenShell Gateway (gRPC)
+
+AFTER (embedded in dashboard):
+  User opens RHOAI Dashboard > Agents > Workspaces tab
+    → Dashboard host loads OpenShell pages via Module Federation
+    → API calls go through host proxy → OpenShell BFF
+    → OpenShell BFF → Gateway (gRPC)
+</div>
+
+<!-- ───────────── PART 3: FOUR QUESTIONS ───────────── -->
+
+<h2>Part 3: The Four Big Questions (and Their Answers)</h2>
+
+<p>The strategy document says there are four independent decisions. Let's translate each one.</p>
+
+<h3>Question A: How does OpenShell code get into our project?</h3>
+
+<div class="analogy-box">
+  <strong>Analogy:</strong> You want to use a friend's recipe in your restaurant. Do you:
+  <br>(A1) Buy their cookbook (npm package)?
+  <br>(A2) Photocopy their handwritten notes (git/file copy)?
+  <br>(A3) Steal their whole recipe binder and keep it in your kitchen (git subtree/fork)?
+  <br>(A4) Have them cook in <em>their</em> kitchen and deliver the finished dish (upstream builds the module)?
+</div>
+
+<div class="decision-card">
+  <div class="decision-label locked">LOCKED: A1 (npm package), with A2 (file copy) as interim</div>
+  <p><strong>Decision:</strong> OpenShell publishes its UI as an <strong>npm package</strong> (like any library you <code>npm install</code>). Our package imports from it.</p>
+  <p><strong>Why:</strong> Clean separation. Upstream stays independent. We get versioned releases. When they fix a bug, we just update the version.</p>
+  <p><strong>Interim:</strong> The npm package isn't published yet (upstream PR #11). Until then, the spike used a <code>file:</code> reference to a local build. Think of it as "borrowing the recipe book while the cookbook is at the printer."</p>
+</div>
+
+<h3>Question B: Who builds the Module Federation remote?</h3>
+
+<div class="analogy-box">
+  <strong>Analogy:</strong> Your friend's recipe is great, but your restaurant has specific plating standards, garnishes, and table sizes. Do you:
+  <br>(B1) Buy their ingredients and plate the dish yourself?
+  <br>(B2) Ask them to plate it in your style too?
+  <br>(B3) Just put a window between your restaurant and theirs and point at their plates (iframe)?
+</div>
+
+<div class="decision-card">
+  <div class="decision-label locked">LOCKED: B1 (ODH adapter builds the MF remote)</div>
+  <p><strong>Decision:</strong> <em>We</em> build the <code>remoteEntry.js</code> in <code>packages/openshell/</code>. We import upstream pages and wrap them in our providers, our routing, our feature flags.</p>
+  <p><strong>Why:</strong> Upstream doesn't need to know about our module federation setup, our PatternFly version, or our auth system. They just provide a library. We do the integration.</p>
+</div>
+
+<div class="decision-card">
+  <div class="decision-label rejected">REJECTED: B3 (iframe)</div>
+  <p><strong>What's an iframe?</strong> A box inside a webpage that shows another whole webpage. Like a picture-in-picture TV.</p>
+  <p><strong>Why rejected:</strong> Iframes don't share auth, styling, or navigation with the parent app. You'd get double scrollbars, the OpenShell pages wouldn't match the dashboard theme, and you'd have to solve auth twice. Fine for a demo, terrible for a product.</p>
+</div>
+
+<h3>Question C: How do we run the OpenShell BFF?</h3>
+
+<div class="analogy-box">
+  <strong>Analogy:</strong> The recipe needs a special sauce that only the original chef knows how to make. Do you:
+  <br>(C1) Hire them to make the sauce and ship it in jars (use their BFF binary)?
+  <br>(C2) Get the sauce recipe and make it yourself (copy their BFF code)?
+  <br>(C3) Write your own version of the sauce from scratch (reimplement in ODH)?
+</div>
+
+<div class="decision-card">
+  <div class="decision-label locked">LOCKED: C1 (ship upstream BFF as a container image)</div>
+  <p><strong>Decision:</strong> We don't rewrite the Go BFF. We take the <em>exact upstream binary</em>, put it in a container image, and deploy it as a sidecar pod.</p>
+  <p><strong>Why:</strong></p>
+  <ul>
+    <li>The BFF already talks to the gateway via gRPC &mdash; reimplementing that would be a lot of duplicated work</li>
+    <li>Auth headers already match what our dashboard sends (<code>x-forwarded-access-token</code>)</li>
+    <li>The healthcheck and readiness endpoints already exist</li>
+    <li>When upstream fixes a bug, we just update the image version</li>
+  </ul>
+  <p><strong>What this means for you:</strong> There's <em>no Go code to write</em> in <code>packages/openshell/bff/</code> for production. The BFF is upstream's container. You only write frontend code + the proxy config.</p>
+</div>
+
+<h3>Question D: What's shared vs. separate at runtime?</h3>
+
+<p>When two apps share the same webpage, they need to agree on which libraries to share. The spike found compatibility issues:</p>
+
+<table>
+  <thead>
+    <tr><th>Library</th><th>OpenShell uses</th><th>Dashboard uses</th><th>Share?</th><th>Risk</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>React</td>
+      <td>18.3</td>
+      <td>18.3</td>
+      <td>Yes (singleton)</td>
+      <td><span class="risk-tag risk-low">Low</span></td>
+    </tr>
+    <tr>
+      <td>PatternFly</td>
+      <td>6.2</td>
+      <td>6.4</td>
+      <td>Yes (singleton)</td>
+      <td><span class="risk-tag risk-low">Low</span> (compatible)</td>
+    </tr>
+    <tr>
+      <td>React Router</td>
+      <td>v6</td>
+      <td>v7</td>
+      <td>No</td>
+      <td><span class="risk-tag risk-high">High</span> major mismatch</td>
+    </tr>
+    <tr>
+      <td>TanStack Query</td>
+      <td>v5</td>
+      <td>v4</td>
+      <td>No</td>
+      <td><span class="risk-tag risk-high">High</span> major mismatch</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="callout callout-warning">
+  <strong>What "singleton" means:</strong> Only <em>one copy</em> of the library loads. If both the host and the module try to load their own React, you'd get errors like "hooks can only be called inside a function component" because React doesn't work when two copies exist. A singleton means "use the host's copy, don't load your own."
+</div>
+
+<div class="callout callout-warning">
+  <strong>Why React Router and TanStack Query can't be shared:</strong> Imagine you speak English v6 and your coworker speaks English v7 where some words mean completely different things. You'd miscommunicate constantly. Major version bumps (v4&rarr;v5, v6&rarr;v7) change how functions work. Loading both versions at once would crash. Solution: the module keeps its <em>own</em> copy of these libraries, isolated from the host.
+</div>
+
+<!-- ───────────── PART 4: THE PROXY CHAIN ───────────── -->
+
+<h2>Part 4: The Proxy Chain &mdash; How API Calls Actually Travel</h2>
+
+<p>This is the part you said confused you most. Let's build it from scratch.</p>
+
+<h3>The Problem</h3>
+
+<p>Your browser can only talk to <strong>one server</strong> &mdash; the dashboard host. But the OpenShell BFF is a <strong>separate server</strong> running on a different port (or a different pod in production). How do API calls get from the browser to the BFF?</p>
+
+<h3>Step by Step</h3>
+
+<div class="flow-step">
+  <div class="flow-num">1</div>
+  <div class="flow-content">
+    <strong>Your code sets the API prefix</strong>
+    <p>In <code>OpenShellWrapper.tsx</code>, you call <code>setApiBasePath('/_bff/openshell')</code>. This tells upstream components: "when you need to fetch data, start all URLs with <code>/_bff/openshell</code>."</p>
+  </div>
+</div>
+
+<div class="flow-step">
+  <div class="flow-num">2</div>
+  <div class="flow-content">
+    <strong>Upstream component makes an API call</strong>
+    <p>The <code>WorkspaceListPage</code> component runs something like <code>fetch('/_bff/openshell/api/v1/workspaces')</code>. It doesn't know or care about proxies &mdash; it just fetches a URL.</p>
+  </div>
+</div>
+
+<div class="flow-step">
+  <div class="flow-num">3</div>
+  <div class="flow-content">
+    <strong>Browser sends the request to the host server</strong>
+    <p>Since the page was loaded from the dashboard host (e.g., <code>localhost:3000</code>), the browser sends the request there. <code>GET http://localhost:3000/_bff/openshell/api/v1/workspaces</code></p>
+  </div>
+</div>
+
+<div class="flow-step">
+  <div class="flow-num">4</div>
+  <div class="flow-content">
+    <strong>Host proxy intercepts and rewrites</strong>
+    <p>The host looks at the URL and finds a matching proxy rule from your <code>package.json</code>:</p>
+    <pre><code>"path": "/_bff/openshell/api"  →  "pathRewrite": "/api"</code></pre>
+    <p>So <code>/_bff/openshell/api/v1/workspaces</code> becomes <code>/api/v1/workspaces</code></p>
+    <p>It also adds the user's auth token header (<code>authorize: true</code>).</p>
+  </div>
+</div>
+
+<div class="flow-step">
+  <div class="flow-num">5</div>
+  <div class="flow-content">
+    <strong>Host forwards to the BFF</strong>
+    <p>In dev: sends to <code>localhost:9113</code> (or wherever the BFF runs).<br>
+    In production: sends to the Kubernetes Service on port <code>8943</code>.</p>
+  </div>
+</div>
+
+<div class="flow-step">
+  <div class="flow-num">6</div>
+  <div class="flow-content">
+    <strong>BFF processes the request</strong>
+    <p>The OpenShell BFF receives <code>GET /api/v1/workspaces</code> with an auth token. It forwards the request to the OpenShell gateway via gRPC. The gateway returns workspace data.</p>
+  </div>
+</div>
+
+<div class="flow-step">
+  <div class="flow-num">7</div>
+  <div class="flow-content">
+    <strong>Response flows back</strong>
+    <p>Gateway &rarr; BFF &rarr; host proxy &rarr; browser &rarr; React Query caches it &rarr; component renders a table.</p>
+  </div>
+</div>
+
+<div class="diagram">
+Browser                Host Proxy               BFF (:9113)           Gateway (gRPC)
+  │                        │                       │                      │
+  │─GET /_bff/openshell/──→│                       │                      │
+  │  api/v1/workspaces     │                       │                      │
+  │                        │─GET /api/v1/─────────→│                      │
+  │                        │  workspaces           │                      │
+  │                        │  + auth token         │─ListWorkspaces()────→│
+  │                        │                       │                      │
+  │                        │                       │←─workspace data──────│
+  │                        │←─JSON response────────│                      │
+  │←─JSON response─────────│                       │                      │
+  │                        │                       │                      │
+  ▼ React renders table    │                       │                      │
+</div>
+
+<!-- ───────────── PART 5: MOCKS AND THE ON-RAMP ───────────── -->
+
+<h2>Part 5: Mocks and the On-Ramp to Real Data</h2>
+
+<p>This is your other big question: <em>"If I use mock data, how does that connect to a real BFF later?"</em></p>
+
+<h3>The key insight: your code doesn't change</h3>
+
+<p>This is the beautiful part of the proxy design. Your React components always call the same URL:</p>
+
+<pre><code>fetch('/_bff/openshell/api/v1/workspaces')</code></pre>
+
+<p>What <em>answers</em> that request changes depending on the environment:</p>
+
+<table>
+  <thead>
+    <tr><th>Environment</th><th>What answers the request</th><th>What you change</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Dev with mocks</strong></td>
+      <td>rspack dev middleware returns hardcoded JSON</td>
+      <td>Nothing in your components</td>
+    </tr>
+    <tr>
+      <td><strong>Dev with real BFF</strong></td>
+      <td>Upstream Go BFF running locally on :8943</td>
+      <td>Remove/disable mock middleware; proxy forwards to BFF</td>
+    </tr>
+    <tr>
+      <td><strong>Production cluster</strong></td>
+      <td>BFF container in Kubernetes, fronted by host proxy</td>
+      <td>Nothing &mdash; configmap handles routing</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="analogy-box">
+  <strong>Analogy:</strong> Imagine you're testing a doorbell. You wire it up to a button and speaker. For testing, you have a friend stand outside and push the button (mock). Later, you install the doorbell on the actual front door (real BFF). The doorbell <em>itself</em> didn't change &mdash; what changed is who's pushing the button and from where.
+</div>
+
+<h3>The three stages of your development</h3>
+
+<div class="spike-section">
+  <h4>Stage 1: Mock everything (where you start &mdash; story 89723)</h4>
+  <ul>
+    <li>rspack dev middleware intercepts <code>/_bff/openshell/api/*</code></li>
+    <li>Returns static JSON that matches the expected API shape</li>
+    <li>No Go BFF, no gateway, no cluster needed</li>
+    <li>You can build and test the <em>entire UI</em> this way</li>
+  </ul>
+  <p><strong>What you're validating:</strong> "Do my pages render? Do the routes work? Does the table show data? Does clicking a row navigate to the detail page?"</p>
+</div>
+
+<div class="spike-section">
+  <h4>Stage 2: Connect to upstream BFF locally (story 89726 / auth-bridge)</h4>
+  <ul>
+    <li>Run the upstream Go BFF binary on your machine: <code>PORT=8943 AUTH_DISABLED=true ./openshell-bff</code></li>
+    <li>Your proxy in <code>package.json</code> already knows to forward to port 8943 (<code>service.port</code>)</li>
+    <li>Disable or remove the mock middleware</li>
+    <li>BFF still needs a gateway &mdash; without one, <code>/readyz</code> returns 503 (not ready), but <code>/healthz</code> returns 200 (alive)</li>
+  </ul>
+  <p><strong>What you're validating:</strong> "Does the proxy chain work end-to-end? Do auth headers get forwarded? Does the BFF respond with the expected shape?"</p>
+</div>
+
+<div class="spike-section">
+  <h4>Stage 3: Full cluster with gateway (when RHAISTRAT-1752 lands)</h4>
+  <ul>
+    <li>BFF runs in a Kubernetes pod alongside the dashboard</li>
+    <li>Gateway is deployed in the cluster</li>
+    <li>Real workspace data flows from gateway &rarr; BFF &rarr; proxy &rarr; browser</li>
+    <li>Auth is fully wired (double-auth via Keycloak)</li>
+  </ul>
+  <p><strong>What you're validating:</strong> "Does everything work for real users on a real cluster?"</p>
+</div>
+
+<div class="callout callout-success">
+  <strong>The point:</strong> At every stage, your React components and your <code>package.json</code> proxy config stay the same. What changes is only the <em>other end</em> of the proxy &mdash; mock, local BFF, or production BFF. That's the whole design goal. You write your code once and it works across all three stages.
+</div>
+
+<!-- ───────────── PART 6: KEY SPIKE FINDINGS ───────────── -->
+
+<h2>Part 6: Key Spike Findings (the Important Bits)</h2>
+
+<p>The spike covers a lot. Here's what matters for your work:</p>
+
+<h3>81066 findings (UI consume &mdash; your work)</h3>
+
+<div class="spike-section">
+  <h4>What upstream publishes</h4>
+  <p>Running <code>npm run build:lib</code> in the upstream repo creates five export groups:</p>
+  <ul>
+    <li><code>./pages</code> &mdash; <code>SandboxListPage</code>, <code>SandboxDetailPage</code> (the actual page components you import)</li>
+    <li><code>./components</code> &mdash; <code>AlertProvider</code> and other shared UI bits</li>
+    <li><code>./api</code> &mdash; API hooks and utility functions</li>
+    <li><code>./types</code> &mdash; TypeScript type definitions</li>
+    <li><code>./slots</code> &mdash; Extension points for cross-module triggers (future)</li>
+  </ul>
+</div>
+
+<div class="spike-section">
+  <h4>What the host wrapper must supply</h4>
+  <p>This is the "callback inventory" from the spike. Every item is something upstream pages <em>expect</em> someone to provide:</p>
+  <table>
+    <thead>
+      <tr><th>What</th><th>How you provide it</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>API prefix</td>
+        <td><code>setApiBasePath('/_bff/openshell')</code></td>
+      </tr>
+      <tr>
+        <td>Session expired handler</td>
+        <td><code>setSessionExpiredHandler(() =&gt; { /* redirect to login */ })</code></td>
+      </tr>
+      <tr>
+        <td>Alert toasts</td>
+        <td>Wrap in <code>&lt;AlertProvider&gt;</code></td>
+      </tr>
+      <tr>
+        <td>List &rarr; detail navigation</td>
+        <td><code>onViewSandbox={(name) =&gt; navigate(name)}</code> callback</td>
+      </tr>
+      <tr>
+        <td>Detail tab control</td>
+        <td><code>activeTab</code> / <code>onTabChange</code> props</td>
+      </tr>
+      <tr>
+        <td>React Query</td>
+        <td><code>&lt;QueryClientProvider&gt;</code> with a v5 client (module-local, not shared)</td>
+      </tr>
+    </tbody>
+  </table>
+  <p>This list is basically Lesson 5's provider table &mdash; it came directly from the spike.</p>
+</div>
+
+<div class="spike-section">
+  <h4>Known blockers</h4>
+  <ul>
+    <li><strong>Terminal WebSocket:</strong> The terminal tab builds WebSocket URLs with a hardcoded <code>/api/v1</code> path instead of using <code>apiBasePath</code>. Through the proxy, this breaks. Feature-gate terminal until upstream fixes it.</li>
+    <li><strong>AlertContext coupling:</strong> Upstream's alert system still lives under an <code>app/</code> internal path. Works because they re-export it, but it's messy. Not a blocker, just ugly.</li>
+    <li><strong>LoginPage:</strong> Upstream has a standalone login page. <strong>Never use it</strong> in the dashboard &mdash; the dashboard has its own auth. Exclude from routes.</li>
+  </ul>
+</div>
+
+<h3>81067 findings (BFF + gateway &mdash; Derek's / infra work)</h3>
+
+<div class="spike-section">
+  <h4>The BFF just works</h4>
+  <p>Dan built the upstream BFF binary and tested it. Key findings:</p>
+  <ul>
+    <li><code>/api/v1/healthz</code> returns <strong>200 OK</strong> (liveness &mdash; "am I alive?")</li>
+    <li><code>/api/v1/readyz</code> returns <strong>503</strong> when gateway is down (readiness &mdash; "am I ready to serve?")</li>
+    <li>Auth headers (<code>x-forwarded-access-token</code>) match what our dashboard already sends</li>
+    <li>The host proxy rewrite (<code>/_bff/openshell/api</code> &rarr; <code>/api</code>) works correctly</li>
+  </ul>
+</div>
+
+<div class="spike-section">
+  <h4>Auth gap (not your problem yet)</h4>
+  <p>The BFF forwards tokens to the gateway. But nobody has proven that the OpenShift oauth-proxy token (what RHOAI users have) works with the OpenShell gateway's OIDC validation. This is the "auth-bridge" story (89726). <strong>Not your concern for 89723.</strong></p>
+</div>
+
+<!-- ───────────── PART 7: WHAT WAS REJECTED ───────────── -->
+
+<h2>Part 7: What Was Rejected (and Why You Should Care)</h2>
+
+<p>Understanding <em>rejected</em> options helps you avoid suggesting them later.</p>
+
+<div class="decision-card">
+  <div class="decision-label rejected">REJECTED: Rewriting the BFF in ODH</div>
+  <p><strong>What it means:</strong> Writing our own Go BFF from scratch in <code>packages/openshell/bff/</code> that talks to the gateway.</p>
+  <p><strong>Why rejected:</strong> Upstream already has one that works. Reimplementing it doubles the code, and when upstream changes the gateway API, we'd have to update our copy too. Ship their binary, configure it with environment variables.</p>
+</div>
+
+<div class="decision-card">
+  <div class="decision-label rejected">REJECTED: Sharing React Router / TanStack Query</div>
+  <p><strong>What it means:</strong> Making the host and module use the same copy of these libraries.</p>
+  <p><strong>Why rejected:</strong> Major version mismatch (v6/v7, v4/v5). Sharing would crash. Keep them module-local until upstream bumps to match.</p>
+</div>
+
+<div class="decision-card">
+  <div class="decision-label rejected">REJECTED: iframe of standalone app</div>
+  <p><strong>What it means:</strong> Loading the entire standalone OpenShell website inside a box on the dashboard page.</p>
+  <p><strong>Why rejected:</strong> No shared auth, no shared styling, double scrollbars, can't control navigation. Demo-only, never production.</p>
+</div>
+
+<div class="decision-card">
+  <div class="decision-label deferred">DEFERRED: Upstream builds the MF remote</div>
+  <p><strong>What it means:</strong> OpenShell's own build would produce a <code>remoteEntry.js</code> that any host could consume.</p>
+  <p><strong>Why deferred:</strong> Good idea, but only worth it when a <em>second</em> host wants to embed OpenShell. Right now only RHOAI needs it. Keep it simple &mdash; we own the adapter.</p>
+</div>
+
+<!-- ───────────── PART 8: SUMMARY CHEAT SHEET ───────────── -->
+
+<h2>Part 8: Cheat Sheet &mdash; The Strategy in One Table</h2>
+
+<table>
+  <thead>
+    <tr><th>Question</th><th>Answer</th><th>What it means for you</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>How does upstream code enter our repo?</td>
+      <td>npm package (file ref until published)</td>
+      <td>You <code>import</code> page components, not copy-paste code</td>
+    </tr>
+    <tr>
+      <td>Who builds remoteEntry.js?</td>
+      <td>Us, in <code>packages/openshell/</code></td>
+      <td>You write extensions.ts, wrapper, routes, webpack config</td>
+    </tr>
+    <tr>
+      <td>Where does the BFF come from?</td>
+      <td>Upstream binary, deployed as a container</td>
+      <td>No Go code to write for production; mocks only for dev</td>
+    </tr>
+    <tr>
+      <td>How do API calls reach the BFF?</td>
+      <td>Host proxy rewrites <code>/_bff/openshell/api</code> &rarr; <code>/api</code></td>
+      <td>Configure in <code>package.json</code> proxy block (Lesson 6)</td>
+    </tr>
+    <tr>
+      <td>What libraries are shared?</td>
+      <td>React + PatternFly only</td>
+      <td>Keep your own QueryClient (v5) and don't share Router</td>
+    </tr>
+    <tr>
+      <td>Auth?</td>
+      <td>Proxy-delegated (<code>x-forwarded-access-token</code>)</td>
+      <td>Set <code>authorize: true</code> in proxy config; BFF reads the header</td>
+    </tr>
+    <tr>
+      <td>Terminal?</td>
+      <td>Feature-gated until upstream fixes WebSocket paths</td>
+      <td>Don't enable terminal tab in your routes for now</td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- ───────────── PART 9: CONNECTING IT ALL ───────────── -->
+
+<h2>Part 9: How This Connects to Your Work</h2>
+
+<p>Everything in the spike and strategy maps to specific files you'll write:</p>
+
+<table>
+  <thead>
+    <tr><th>Spike finding</th><th>Your file</th><th>Story</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>MF name + ports + proxy</td>
+      <td><code>packages/openshell/package.json</code></td>
+      <td>89723</td>
+    </tr>
+    <tr>
+      <td>Feature flag</td>
+      <td><code>SupportedArea.OPENSHELL</code> + const mapping</td>
+      <td>89723</td>
+    </tr>
+    <tr>
+      <td>Tab extension</td>
+      <td><code>extensions.ts</code></td>
+      <td>89723</td>
+    </tr>
+    <tr>
+      <td>Providers + apiBasePath</td>
+      <td><code>OpenShellWrapper.tsx</code></td>
+      <td>89723</td>
+    </tr>
+    <tr>
+      <td>Routes + callbacks</td>
+      <td><code>OpenShellRoutes.tsx</code></td>
+      <td>89723</td>
+    </tr>
+    <tr>
+      <td>Mock BFF for dev</td>
+      <td>rspack dev middleware or fixture JSON</td>
+      <td>89723</td>
+    </tr>
+    <tr>
+      <td>Real BFF image + auth bridge</td>
+      <td>Deployment manifest + env vars</td>
+      <td>89726 (not your story)</td>
+    </tr>
+    <tr>
+      <td>Auth UX + Cypress tests</td>
+      <td>Auth flags, test specs</td>
+      <td>89741 (after 89723)</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Quiz</h2>
+
+<div class="quiz">
+  <p class="quiz-question">1. What is a "spike" in software engineering?</p>
+  <ul class="quiz-options" data-answer="c">
+    <li data-option="a">A critical production bug that must be fixed immediately</li>
+    <li data-option="b">A security vulnerability in the codebase</li>
+    <li data-option="c">A research task to investigate feasibility and recommend an approach</li>
+    <li data-option="d">A type of automated test that runs before deployment</li>
+  </ul>
+</div>
+
+<div class="quiz">
+  <p class="quiz-question">2. Why was "ship upstream BFF binary" chosen over "rewrite in ODH"?</p>
+  <ul class="quiz-options" data-answer="b">
+    <li data-option="a">The upstream BFF is written in a faster language</li>
+    <li data-option="b">It already works, avoids duplication, and stays in sync with upstream changes</li>
+    <li data-option="c">ODH doesn't support Go code</li>
+    <li data-option="d">The team doesn't have Go developers</li>
+  </ul>
+</div>
+
+<div class="quiz">
+  <p class="quiz-question">3. When you switch from mock data to a real BFF, what changes in your React components?</p>
+  <ul class="quiz-options" data-answer="d">
+    <li data-option="a">You rewrite all fetch calls to point to the BFF URL</li>
+    <li data-option="b">You change the API prefix in every component</li>
+    <li data-option="c">You add auth headers to every fetch call</li>
+    <li data-option="d">Nothing &mdash; the proxy config handles routing; components stay the same</li>
+  </ul>
+</div>
+
+<div class="quiz">
+  <p class="quiz-question">4. Why can't React Router be shared between the host and OpenShell module?</p>
+  <ul class="quiz-options" data-answer="a">
+    <li data-option="a">Major version mismatch (v6 vs v7) &mdash; sharing would crash</li>
+    <li data-option="b">React Router doesn't support Module Federation</li>
+    <li data-option="c">The host doesn't use React Router</li>
+    <li data-option="d">Sharing routers creates security vulnerabilities</li>
+  </ul>
+</div>
+
+<div class="quiz">
+  <p class="quiz-question">5. What does "singleton" mean in the Module Federation context?</p>
+  <ul class="quiz-options" data-answer="b">
+    <li data-option="a">A design pattern where a class can only be instantiated once</li>
+    <li data-option="b">Only one copy of a library is loaded &mdash; the host's version, not the module's</li>
+    <li data-option="c">A module that has no dependencies</li>
+    <li data-option="d">A component that renders only once on the page</li>
+  </ul>
+</div>
+
+<div class="quiz">
+  <p class="quiz-question">6. Why was the iframe approach rejected?</p>
+  <ul class="quiz-options" data-answer="c">
+    <li data-option="a">Iframes are deprecated in modern browsers</li>
+    <li data-option="b">Iframes don't support React applications</li>
+    <li data-option="c">No shared auth, styling, or navigation &mdash; bad UX for a production product</li>
+    <li data-option="d">Iframes have a maximum size limit that's too small</li>
+  </ul>
+</div>
+
+<script>
+document.querySelectorAll('.quiz-options').forEach(ul => {
+  const answer = ul.dataset.answer;
+  ul.querySelectorAll('li').forEach(li => {
+    li.addEventListener('click', () => {
+      ul.querySelectorAll('li').forEach(l => l.classList.remove('correct', 'incorrect'));
+      if (li.dataset.option === answer) {
+        li.classList.add('correct');
+      } else {
+        li.classList.add('incorrect');
+        ul.querySelector(`[data-option="${answer}"]`).classList.add('correct');
+      }
+    });
+  });
+});
+</script>
+
+<h2>Source Documents</h2>
+
+<ul>
+  <li><a href="https://github.com/danreed-rh/odh-dashboard/blob/RHOAIENG-81066/openshell-ui-mf/packages/openshell-spike/SPIKE.md">SPIKE.md</a> &mdash; Full spike findings (81066 + 81067)</li>
+  <li><a href="https://github.com/danreed-rh/odh-dashboard/blob/RHOAIENG-81066/openshell-ui-mf/packages/openshell-spike/FEDERATION-STRATEGY.md">FEDERATION-STRATEGY.md</a> &mdash; Architecture decisions (locked)</li>
+</ul>
+
+<h2>What's Next</h2>
+
+<ul>
+  <li><strong>Ready to code?</strong> You now understand the full picture. Use the <a href="../reference/89723-file-checklist.html">file checklist</a> and start scaffolding <code>packages/openshell/</code>.</li>
+  <li><strong>Still confused?</strong> The proxy chain and mock-to-real progression are the hardest concepts. Re-read Part 4 and Part 5, then ask about whichever step doesn't click.</li>
+</ul>
+
+<hr>
+
+<p><a href="./0006-package-json-deep-dive.html">&larr; Previous: package.json Deep Dive</a></p>
+
+</body>
+</html>

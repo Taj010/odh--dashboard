@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lesson 1: What is Agent Ops?</title>
+  <link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body>
+
+<h1>Lesson 1: What is Agent Ops?</h1>
+
+<nav class="lesson-nav lesson-nav-end" aria-label="Lesson navigation">
+  <a href="./index.html" class="lesson-nav-index">All lessons</a>
+  <a href="./0002-jira-ticket-hierarchy.html" class="lesson-nav-next">Lesson 2: Jira hierarchy →</a>
+</nav>
+
+<p><strong>Goal:</strong> Understand what the agent-ops feature does and why it exists.</p>
+
+<div class="callout callout-info">
+  <strong>Primary Source:</strong> <a href="https://github.com/opendatahub-io/odh-dashboard/tree/main/packages/agent-ops">packages/agent-ops</a> in the odh-dashboard repository.
+</div>
+
+<h2>The Big Picture</h2>
+
+<p>Imagine you're running a restaurant. You have chefs (AI agents) that can cook different dishes (perform tasks). Agent Ops is like a <strong>kitchen management dashboard</strong> — it lets you:</p>
+
+<ul>
+  <li>See all the chefs working in your kitchen</li>
+  <li>Start a new chef's shift (deploy an agent)</li>
+  <li>Send a chef home (stop an agent)</li>
+  <li>See what each chef is doing (get agent details)</li>
+  <li>Fire a chef (delete an agent)</li>
+</ul>
+
+<p>In technical terms: <span class="term">Agent Ops</span> is a web UI that lets users <strong>deploy, monitor, and manage AI agents</strong> running in a Kubernetes cluster.</p>
+
+<h2>What is an "Agent"?</h2>
+
+<p>An <span class="term">AI Agent</span> is a program that can:</p>
+<ol>
+  <li>Receive instructions (usually natural language)</li>
+  <li>Think about what to do</li>
+  <li>Take actions (call APIs, search, generate code)</li>
+  <li>Report back results</li>
+</ol>
+
+<p>Examples of agents:</p>
+<ul>
+  <li>A support agent that reads tickets and drafts responses</li>
+  <li>A code assistant that helps developers write code</li>
+  <li>A data analyst that queries databases and creates reports</li>
+</ul>
+
+<p>These agents run as <strong>containers</strong> in Kubernetes — they're software that runs on servers in the cloud.</p>
+
+<h2>What is an "AgentRuntime"?</h2>
+
+<p>An <span class="term">AgentRuntime</span> is the <strong>running instance</strong> of an agent. Think of it like:</p>
+
+<ul>
+  <li><strong>Agent</strong> = The recipe (the code/image)</li>
+  <li><strong>AgentRuntime</strong> = A chef actually cooking from that recipe (the running container)</li>
+</ul>
+
+<p>When you "deploy" an agent, you create an AgentRuntime. The runtime has:</p>
+
+<div class="diagram">
+AgentRuntime
+├── name: "support-agent"           ← unique name
+├── namespace: "my-project"         ← Kubernetes namespace
+├── status: "running"               ← is it working?
+├── containerImage: "quay.io/..."   ← what code it runs
+├── endpoints:                      ← how to talk to it
+│   └── http://support-agent:8080
+└── framework: "langgraph"          ← what AI framework
+</div>
+
+<h2>The Architecture (How It All Connects)</h2>
+
+<p>Agent Ops has three layers. <strong>Memorize this — it's the foundation of everything.</strong></p>
+
+<div class="diagram">
+┌─────────────────┐
+│    FRONTEND     │  ← React UI (what you see in browser)
+│    (Browser)    │
+└────────┬────────┘
+         │ HTTP calls
+         ▼
+┌─────────────────┐
+│      BFF        │  ← Go server (Backend-for-Frontend)
+│  (Go Server)    │     Handles auth, business logic
+└────────┬────────┘
+         │ Kubernetes API calls
+         ▼
+┌─────────────────┐
+│   KUBERNETES    │  ← The cluster where agents run
+│    Cluster      │     Has "Sandbox" Custom Resources
+└─────────────────┘
+</div>
+
+<h3>Layer 1: Frontend (React)</h3>
+<p>The web interface users interact with. Built with:</p>
+<ul>
+  <li><strong>React</strong> — JavaScript framework for building UIs</li>
+  <li><strong>TypeScript</strong> — JavaScript with types (catches bugs early)</li>
+  <li><strong>PatternFly</strong> — Red Hat's component library (buttons, tables, forms)</li>
+</ul>
+<p>Location: <code>packages/agent-ops/frontend/</code></p>
+
+<h3>Layer 2: BFF (Go)</h3>
+<p><span class="term">BFF</span> stands for "Backend-for-Frontend". It's a server that:</p>
+<ul>
+  <li>Receives requests from the frontend</li>
+  <li>Authenticates users (are they allowed?)</li>
+  <li>Talks to Kubernetes on behalf of users</li>
+  <li>Returns data in a format the frontend expects</li>
+</ul>
+<p>Location: <code>packages/agent-ops/bff/</code></p>
+
+<div class="callout callout-warning">
+  <strong>Why have a BFF?</strong> The browser can't talk directly to Kubernetes. The BFF acts as a secure intermediary that handles auth and translates between the UI and the cluster.
+</div>
+
+<h3>Layer 3: Kubernetes</h3>
+<p>The cluster where agents actually run. Key concept:</p>
+<ul>
+  <li><span class="term">Sandbox CR</span> — A "Custom Resource" that defines an agent deployment</li>
+  <li>When you create a Sandbox, Kubernetes automatically creates the Pod (container) and Service (network endpoint)</li>
+</ul>
+
+<h2>The Data Flow (Trace a Request)</h2>
+
+<p>Let's trace what happens when a user clicks "View Agents":</p>
+
+<div class="diagram">
+1. User clicks "Agent Deployments" in the nav
+   │
+   ▼
+2. Frontend calls: GET /api/v1/agents/runtimes
+   │
+   ▼
+3. BFF receives request, checks user's auth token
+   │
+   ▼
+4. BFF calls Kubernetes API: "List all Sandbox CRs"
+   │
+   ▼
+5. Kubernetes returns list of Sandboxes
+   │
+   ▼
+6. BFF transforms data into AgentRuntime objects
+   │
+   ▼
+7. BFF returns JSON to frontend
+   │
+   ▼
+8. Frontend renders a table of agents
+</div>
+
+<h2>The Contract (OpenAPI)</h2>
+
+<p>How do the frontend and BFF agree on what data looks like? They use a <span class="term">contract</span>.</p>
+
+<p>The contract is written in <strong>OpenAPI</strong> (a YAML file that describes the API). It defines:</p>
+<ul>
+  <li>What endpoints exist (<code>/api/v1/agents/runtimes</code>)</li>
+  <li>What parameters they accept (<code>namespace</code>, <code>limit</code>)</li>
+  <li>What response they return (an <code>AgentRuntimesList</code>)</li>
+</ul>
+
+<p><strong>Location:</strong> <code>packages/agent-ops/api/openapi/agent-ops.yaml</code></p>
+
+<div class="callout callout-success">
+  <strong>Contract-First Development:</strong> In this project, you write the OpenAPI spec FIRST, then implement code that matches it. This prevents frontend/backend mismatch bugs.
+</div>
+
+<h2>Key API Operations</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>What you want to do</th>
+      <th>HTTP Method</th>
+      <th>Endpoint</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>List all agents</td>
+      <td>GET</td>
+      <td><code>/api/v1/agents/runtimes</code></td>
+    </tr>
+    <tr>
+      <td>Get one agent's details</td>
+      <td>GET</td>
+      <td><code>/api/v1/agents/runtimes/{ns}/{name}</code></td>
+    </tr>
+    <tr>
+      <td>Deploy a new agent</td>
+      <td>POST</td>
+      <td><code>/api/v1/agents/deploy</code></td>
+    </tr>
+    <tr>
+      <td>Stop an agent</td>
+      <td>POST</td>
+      <td><code>/api/v1/agents/runtimes/{ns}/{name}/stop</code></td>
+    </tr>
+    <tr>
+      <td>Start an agent</td>
+      <td>POST</td>
+      <td><code>/api/v1/agents/runtimes/{ns}/{name}/start</code></td>
+    </tr>
+    <tr>
+      <td>Restart an agent</td>
+      <td>POST</td>
+      <td><code>/api/v1/agents/runtimes/{ns}/{name}/restart</code></td>
+    </tr>
+    <tr>
+      <td>Delete an agent</td>
+      <td>DELETE</td>
+      <td><code>/api/v1/agents/runtimes/{ns}/{name}</code></td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Quiz: Check Your Understanding</h2>
+
+<div class="quiz">
+  <p class="quiz-question">1. What does BFF stand for?</p>
+  <ul class="quiz-options" data-answer="b">
+    <li data-option="a">Best Feature Framework</li>
+    <li data-option="b">Backend-for-Frontend</li>
+    <li data-option="c">Browser Frontend Fetch</li>
+    <li data-option="d">Binary File Format</li>
+  </ul>
+</div>
+
+<div class="quiz">
+  <p class="quiz-question">2. What is the relationship between an Agent and an AgentRuntime?</p>
+  <ul class="quiz-options" data-answer="c">
+    <li data-option="a">They are the same thing</li>
+    <li data-option="b">Agent is the runtime status</li>
+    <li data-option="c">Agent is the code; AgentRuntime is the running instance</li>
+    <li data-option="d">AgentRuntime is the code; Agent is running</li>
+  </ul>
+</div>
+
+<div class="quiz">
+  <p class="quiz-question">3. Why can't the frontend talk directly to Kubernetes?</p>
+  <ul class="quiz-options" data-answer="b">
+    <li data-option="a">Kubernetes doesn't support HTTP</li>
+    <li data-option="b">Security: the browser needs a server to handle auth</li>
+    <li data-option="c">The frontend is written in TypeScript</li>
+    <li data-option="d">Kubernetes only speaks Go</li>
+  </ul>
+</div>
+
+<script>
+document.querySelectorAll('.quiz-options').forEach(ul => {
+  const answer = ul.dataset.answer;
+  ul.querySelectorAll('li').forEach(li => {
+    li.addEventListener('click', () => {
+      ul.querySelectorAll('li').forEach(l => l.classList.remove('correct', 'incorrect'));
+      if (li.dataset.option === answer) {
+        li.classList.add('correct');
+      } else {
+        li.classList.add('incorrect');
+        ul.querySelector(`[data-option="${answer}"]`).classList.add('correct');
+      }
+    });
+  });
+});
+</script>
+
+<h2>What's Next?</h2>
+
+<p>Now that you understand what Agent Ops does, the next lesson will cover:</p>
+<ul>
+  <li>How Jira tickets are organized (RFE → Epic → Story)</li>
+  <li>How to read a story and know what to implement</li>
+  <li>How to identify blockers and dependencies</li>
+</ul>
+
+<hr>
+
+<p><em>Questions? Ask your teacher (the agent) — I'm here to help clarify anything that's unclear.</em></p>
+
+<nav class="lesson-nav lesson-nav-footer lesson-nav-end" aria-label="Lesson navigation">
+  <a href="./index.html" class="lesson-nav-index">All lessons</a>
+  <a href="./0002-jira-ticket-hierarchy.html" class="lesson-nav-next">Lesson 2: Jira hierarchy →</a>
+</nav>
+
+</body>
+</html>

@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reference: OpenShell Dependency Map</title>
+  <link rel="stylesheet" href="../assets/styles.css">
+  <style>
+    .status-done { color: var(--color-success); font-weight: 600; }
+    .status-you { color: var(--color-primary); font-weight: 600; }
+    .status-other { color: var(--color-text-muted); }
+    .status-blocked { color: var(--color-danger); font-weight: 600; }
+    table { font-size: 0.9em; }
+  </style>
+</head>
+<body>
+
+<h1>OpenShell Dependency Map</h1>
+
+<p>Quick reference. <a href="../lessons/0003-openshell-two-epics.html">Lesson 3</a> explains each row.</p>
+
+<h2>Epic 1 — <a href="https://redhat.atlassian.net/browse/RHOAIENG-81030">RHOAIENG-81030</a> (odh-dashboard)</h2>
+
+<table>
+  <thead>
+    <tr><th>Ticket</th><th>Status</th><th>Owner</th><th>Blocks</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>81066 UI spike</td><td class="status-done">Done</td><td>—</td><td>—</td></tr>
+    <tr><td>81067 BFF spike</td><td class="status-done">Done</td><td>—</td><td>—</td></tr>
+    <tr><td><strong>89723</strong> FE scaffold</td><td class="status-you">Your start</td><td>Frontend</td><td>89741</td></tr>
+    <tr><td>89740 manifests</td><td class="status-other">Infra</td><td>Platform</td><td>89726</td></tr>
+    <tr><td>89726 real BFF</td><td class="status-other">Backend</td><td>Backend</td><td>live E2E (stretch)</td></tr>
+    <tr><td><strong>89741</strong> auth UX + Cypress</td><td class="status-you">Your next</td><td>Frontend</td><td>blocked by 89723</td></tr>
+  </tbody>
+</table>
+
+<h2>Epic 2 — <a href="https://redhat.atlassian.net/browse/RHOAIENG-87732">RHOAIENG-87732</a> (upstream)</h2>
+
+<table>
+  <thead>
+    <tr><th>Ticket</th><th>Title</th><th>FE impact</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>87975</td><td>BFF directory restructure</td><td>None (usually)</td></tr>
+    <tr><td>87983</td><td>SDK client init</td><td>Enables real gateway data</td></tr>
+    <tr><td>87985</td><td>API spec definition</td><td><strong>Mock against this</strong></td></tr>
+    <tr><td>88012</td><td>Implement API spec</td><td>Auth config + response shapes</td></tr>
+  </tbody>
+</table>
+
+<h2>Ports &amp; Paths</h2>
+
+<table>
+  <thead>
+    <tr><th>Module</th><th>BFF port</th><th>Browser API prefix</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>agent-ops (Sandbox CR)</td><td>8843</td><td><code>/agent-ops/api</code></td></tr>
+    <tr><td>openshell (gateway)</td><td>8943</td><td><code>/openshell/api</code></td></tr>
+    <tr><td>mlflow (reference)</td><td>8643</td><td><code>/mlflow/api</code></td></tr>
+  </tbody>
+</table>
+
+<h2>Ship Blocker</h2>
+
+<p class="status-blocked"><a href="https://redhat.atlassian.net/browse/RHAISTRAT-1752">RHAISTRAT-1752</a> — OpenShell gateway not deployed in RHOAI. Build with mocks; ship waits on gateway.</p>
+
+<p><a href="../lessons/0003-openshell-two-epics.html">← Back to Lesson 3</a></p>
+
+</body>
+</html>

@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lesson 6: The package.json Deep Dive</title>
+  <link rel="stylesheet" href="../assets/styles.css">
+  <style>
+    .field-card { border: 2px solid var(--color-border); border-radius: 6px; padding: var(--spacing-md); margin: var(--spacing-md) 0; }
+    .field-name { font-weight: 700; font-size: 1.05em; color: var(--color-primary); margin-bottom: var(--spacing-xs); }
+    .port-row { display: flex; gap: var(--spacing-md); flex-wrap: wrap; }
+    .port-box { flex: 1; min-width: 180px; border: 1px solid var(--color-border); border-radius: 6px; padding: var(--spacing-md); text-align: center; }
+    .port-box .port-num { font-size: 1.5em; font-weight: 700; font-family: var(--font-mono); }
+    .port-box .port-label { font-size: 0.85em; color: var(--color-text-muted); }
+  </style>
+</head>
+<body>
+
+<h1>Lesson 6: The <code>package.json</code> Deep Dive</h1>
+
+<p><strong>Goal:</strong> Understand every field in the <code>module-federation</code> block, how the proxy chain works, why ports matter, and how <code>validate:ports</code> catches mistakes before they reach production.</p>
+
+<p>
+  <a href="./0005-host-wrapper-and-mock-bff.html">&larr; Lesson 5: Host Wrapper</a> &middot;
+  <a href="./0007-spike-explainer.html">Lesson 7: Spike Explainer &rarr;</a> &middot;
+  <a href="../reference/glossary.html">Glossary</a>
+</p>
+
+<h2>Why This File Matters</h2>
+
+<p>In a normal React project, <code>package.json</code> just lists your dependencies. In this monorepo, it also holds the <strong>module-federation config</strong> &mdash; a custom block that tells the host app:</p>
+
+<ul>
+  <li>How to <strong>find</strong> your module (name, entry point)</li>
+  <li>How to <strong>route API calls</strong> from browser to your BFF (proxy rules)</li>
+  <li>Which <strong>ports</strong> to use in dev vs production</li>
+  <li>Whether to <strong>add auth headers</strong> to proxied requests</li>
+</ul>
+
+<p>Think of it as the <em>contract between your module and the host</em>. Get it wrong and nothing connects.</p>
+
+<h2>A Real Example: agent-ops</h2>
+
+<p>Here is the actual <code>module-federation</code> block from <code>packages/agent-ops/package.json</code>:</p>
+
+<pre><code>"module-federation": {
+  "name": "agentOps",
+  "remoteEntry": "/remoteEntry.js",
+  "authorize": true,
+  "tls": false,
+  "proxy": [
+    {
+      "path": "/agent-ops/api",
+      "pathRewrite": "/api"
+    },
+    {
+      "path": "/agent-ops/healthcheck",
+      "pathRewrite": "/healthcheck"
+    }
+  ],
+  "local": {
+    "host": "localhost",
+    "port": 9111
+  },
+  "service": {
+    "name": "odh-dashboard",
+    "port": 8843
+  }
+}</code></pre>
+
+<p>Let's break every field down.</p>
+
+<h2>Field-by-Field Breakdown</h2>
+
+<div class="field-card">
+  <div class="field-name">"name": "agentOps"</div>
+  <p><strong>What:</strong> The unique identifier for this module in the Module Federation system.</p>
+  <p><strong>Analogy:</strong> Like a username &mdash; the host uses this name to say "load the agentOps remote." Must be unique across all modules. Must be camelCase (no hyphens).</p>
+  <p><strong>For OpenShell:</strong> Would be <code>"openshell"</code></p>
+</div>
+
+<div class="field-card">
+  <div class="field-name">"remoteEntry": "/remoteEntry.js"</div>
+  <p><strong>What:</strong> The filename webpack/rspack generates that contains the "table of contents" for your module.</p>
+  <p><strong>Analogy:</strong> Like an index page at a library. The host fetches this file first, and it tells the host which components are available and how to load them.</p>
+  <p><strong>Rule:</strong> Always <code>/remoteEntry.js</code> &mdash; don't change it.</p>
+</div>
+
+<div class="field-card">
+  <div class="field-name">"authorize": true</div>
+  <p><strong>What:</strong> Tells the host proxy to <strong>add the user's auth token</strong> to every API request it forwards to your BFF.</p>
+  <p><strong>Analogy:</strong> Imagine a mail room. When you send a letter through the mail room, <code>authorize: true</code> means the mail room stamps your ID badge number on the envelope before forwarding it. The BFF needs that stamp to know <em>who</em> is making the request.</p>
+  <p><strong>Without it:</strong> Your BFF gets requests with no identity &mdash; it has to reject them (401).</p>
+</div>
+
+<div class="field-card">
+  <div class="field-name">"tls": false</div>
+  <p><strong>What:</strong> Whether the host-to-module connection uses HTTPS (encrypted) or HTTP (plain).</p>
+  <p><strong>Analogy:</strong> Like choosing between a sealed envelope (TLS true) and a postcard (TLS false). In dev, postcards are fine. In production on the cluster, internal traffic stays within the network, but production configs may flip this to <code>true</code>.</p>
+</div>
+
+<div class="field-card">
+  <div class="field-name">"proxy": [...]</div>
+  <p><strong>What:</strong> The most important part. This is the <strong>URL rewrite rule</strong> that connects browser requests to your BFF.</p>
+  <p>We'll explain this in detail below.</p>
+</div>
+
+<div class="field-card">
+  <div class="field-name">"local": { "host": "localhost", "port": 9111 }</div>
+  <p><strong>What:</strong> Where your module's dev server runs on your machine.</p>
+  <p><strong>Analogy:</strong> Like an apartment number. The host dev server runs on port 3000; agent-ops runs on 9111; mlflow on 9110; model-registry on 9100. Each module needs its own "apartment" so they don't crash into each other.</p>
+</div>
+
+<div class="field-card">
+  <div class="field-name">"service": { "name": "odh-dashboard", "port": 8843 }</div>
+  <p><strong>What:</strong> In production (on the cluster), which Kubernetes Service and port serves this module.</p>
+  <p><strong>Analogy:</strong> <code>local</code> is your dev-machine address. <code>service</code> is your production-cluster address. Different locations, same concept.</p>
+</div>
+
+<h2>The Proxy &mdash; Explained Simply</h2>
+
+<div class="callout callout-info">
+  <strong>What is a proxy?</strong> A proxy is a <strong>middleman</strong>. It receives a request, changes something about it, and forwards it somewhere else. Think of a translator who receives a letter in English, translates it to French, and hands it to the French speaker.
+</div>
+
+<p>Here's the problem the proxy solves:</p>
+
+<div class="diagram">
+The browser can only talk to ONE server: the host (port 3000).
+But your BFF runs on a DIFFERENT server (port 9111 in dev, port 8843 in prod).
+
+Without proxy:
+  Browser  --GET /agent-ops/api/v1/agents-->  Host (:3000)  ---> 404 Not Found!
+  (Host doesn't have that API. It's a React server, not a Go BFF.)
+
+With proxy:
+  Browser  --GET /agent-ops/api/v1/agents-->  Host (:3000)
+     Host sees "/agent-ops/api" matches a proxy rule
+     Host rewrites path: "/agent-ops/api/v1/agents" --> "/api/v1/agents"
+     Host forwards to BFF (:9111 or :8843)
+  BFF      --responds with JSON-->  Host  --forwards to-->  Browser
+</div>
+
+<h3>The two-part rewrite</h3>
+
+<pre><code>"proxy": [
+  {
+    "path": "/agent-ops/api",     // MATCH: "if the URL starts with this..."
+    "pathRewrite": "/api"          // REPLACE: "...change that prefix to this"
+  }
+]</code></pre>
+
+<table>
+  <thead>
+    <tr><th>Browser sends</th><th>Host rewrites to</th><th>BFF receives</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>GET /agent-ops/api/v1/agents</code></td>
+      <td><code>GET /api/v1/agents</code></td>
+      <td><code>/api/v1/agents</code></td>
+    </tr>
+    <tr>
+      <td><code>GET /agent-ops/api/v1/agents/ns1/bot</code></td>
+      <td><code>GET /api/v1/agents/ns1/bot</code></td>
+      <td><code>/api/v1/agents/ns1/bot</code></td>
+    </tr>
+    <tr>
+      <td><code>GET /agent-ops/healthcheck</code></td>
+      <td><code>GET /healthcheck</code></td>
+      <td><code>/healthcheck</code></td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Why strip the prefix?</h3>
+
+<p>The BFF doesn't know it's running "inside" the dashboard. It just serves <code>/api/v1/...</code> and <code>/healthcheck</code>. The <code>/agent-ops/</code> prefix is the <strong>host's way of routing</strong> &mdash; like an apartment building where unit 301 gets mail addressed to "301-Smith", but inside the apartment, it's just "Smith".</p>
+
+<h3>OpenShell's proxy would be:</h3>
+
+<pre><code>"proxy": [
+  {
+    "path": "/_bff/openshell/api",
+    "pathRewrite": "/api"
+  }
+]</code></pre>
+
+<p>Note: the spike recommends <code>/_bff/openshell/api</code> (with the <code>_bff</code> prefix), matching mlflow's pattern. The <code>_bff</code> prefix is a convention meaning "this path goes to a BFF sidecar, not to the main host backend."</p>
+
+<h2>Port Allocation</h2>
+
+<p>Every module needs <strong>unique ports</strong> &mdash; if two modules try to run on the same port, one of them crashes. Here's the current map:</p>
+
+<div class="port-row">
+  <div class="port-box">
+    <div class="port-num">9100</div>
+    <div class="port-label">model-registry<br>(dev)</div>
+  </div>
+  <div class="port-box">
+    <div class="port-num">9110</div>
+    <div class="port-label">mlflow<br>(dev)</div>
+  </div>
+  <div class="port-box">
+    <div class="port-num">9111</div>
+    <div class="port-label">agent-ops<br>(dev)</div>
+  </div>
+  <div class="port-box" style="border-color: var(--color-primary); background: #f1f8ff;">
+    <div class="port-num">9113</div>
+    <div class="port-label">openshell<br>(recommended)</div>
+  </div>
+</div>
+
+<p style="margin-top: var(--spacing-md);"><strong>Production ports</strong> are separate numbers (8043, 8843, etc.) used inside the Kubernetes cluster. You'll see them in the <code>service.port</code> field and in manifest YAML files.</p>
+
+<h3>Why not just pick any number?</h3>
+
+<ul>
+  <li><strong>Dev:</strong> You might run multiple modules at once. If agent-ops and openshell both use 9111, one fails to start.</li>
+  <li><strong>Production:</strong> Kubernetes Services and NetworkPolicies reference these ports. A conflict means traffic goes to the wrong module.</li>
+</ul>
+
+<h2><code>validate:ports</code> &mdash; The Safety Net</h2>
+
+<p>The repo has a script that <strong>automatically checks for port conflicts</strong>. It runs:</p>
+
+<ul>
+  <li>In the <strong>pre-commit hook</strong> (every time you commit)</li>
+  <li>In <strong>CI</strong> (GitHub Actions test workflow)</li>
+</ul>
+
+<pre><code># What it does (you don't need to run this manually usually):
+npm run validate:ports</code></pre>
+
+<p>The script reads every workspace package's <code>module-federation</code> block and:</p>
+
+<ol>
+  <li><strong>Collects all <code>local.port</code> values</strong> from every <code>package.json</code></li>
+  <li><strong>Collects all <code>service.port</code> values</strong> from the federation configmap YAML files</li>
+  <li><strong>Checks for duplicates</strong> &mdash; if two modules share a port, the script fails with a clear error</li>
+</ol>
+
+<p>Example output when everything is OK:</p>
+
+<pre><code>Local Dev Ports (package.json)
+────────────────────────────────────────
+  ✓  port 9100  →  modelRegistry
+  ✓  port 9110  →  mlflow
+  ✓  port 9111  →  agentOps
+────────────────────────────────────────
+  3 federated module(s), 3 unique port(s)
+
+✓ All module federation ports are unique.</code></pre>
+
+<p>Example output when there's a conflict:</p>
+
+<pre><code>  ✗ CONFLICT  port 9111  →  agentOps
+  ✗ CONFLICT  port 9111  →  openshell     &lt;-- oops!
+
+✗ Local dev port conflicts detected:
+  Port 9111 is used by: agentOps, openshell</code></pre>
+
+<div class="callout callout-warning">
+  <strong>Takeaway:</strong> When you scaffold <code>packages/openshell/package.json</code>, use port <strong>9113</strong> for <code>local.port</code> and <strong>8943</strong> for <code>service.port</code>. These were chosen by the spike to avoid conflicts.
+</div>
+
+<h2>Comparing All Three Modules</h2>
+
+<table>
+  <thead>
+    <tr><th>Field</th><th>agent-ops</th><th>mlflow</th><th>model-registry</th><th>openshell (planned)</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>name</code></td>
+      <td><code>agentOps</code></td>
+      <td><code>mlflow</code></td>
+      <td><code>modelRegistry</code></td>
+      <td><code>openshell</code></td>
+    </tr>
+    <tr>
+      <td><code>authorize</code></td>
+      <td><code>true</code></td>
+      <td><code>true</code></td>
+      <td><code>true</code></td>
+      <td><code>true</code></td>
+    </tr>
+    <tr>
+      <td>proxy path</td>
+      <td><code>/agent-ops/api</code></td>
+      <td><code>/_bff/mlflow/api</code></td>
+      <td><code>/model-registry/api</code></td>
+      <td><code>/_bff/openshell/api</code></td>
+    </tr>
+    <tr>
+      <td><code>local.port</code></td>
+      <td><code>9111</code></td>
+      <td><code>9110</code></td>
+      <td><code>9100</code></td>
+      <td><code>9113</code></td>
+    </tr>
+    <tr>
+      <td><code>service.port</code></td>
+      <td><code>8843</code></td>
+      <td><code>8043</code></td>
+      <td><code>8043</code></td>
+      <td><code>8943</code></td>
+    </tr>
+  </tbody>
+</table>
+
+<p>Notice the pattern: every module follows the exact same structure, just with different names, paths, and ports.</p>
+
+<h2>The Full Picture: How It All Connects</h2>
+
+<div class="diagram">
+package.json "module-federation" block
+  │
+  ├── "name" + "remoteEntry"
+  │     → tells webpack how to bundle
+  │     → host loads remoteEntry.js to discover extensions
+  │
+  ├── "proxy"
+  │     → tells host dev server to forward API calls
+  │     → in prod: configmap tells the Fastify proxy the same thing
+  │
+  ├── "local"
+  │     → rspack dev server listens on this port
+  │     → host connects here during local development
+  │
+  ├── "service"
+  │     → Kubernetes Service + Deployment use this port
+  │     → host connects here in production
+  │
+  └── "authorize"
+        → host adds auth headers before forwarding
+        → BFF reads those headers to identify the user
+</div>
+
+<h2>What You'll Write for 89723</h2>
+
+<p>When you scaffold <code>packages/openshell/package.json</code> for story 89723, here's the block you'll add:</p>
+
+<pre><code>"module-federation": {
+  "name": "openshell",
+  "remoteEntry": "/remoteEntry.js",
+  "authorize": true,
+  "tls": false,
+  "proxy": [
+    {
+      "path": "/_bff/openshell/api",
+      "pathRewrite": "/api"
+    }
+  ],
+  "local": {
+    "host": "localhost",
+    "port": 9113
+  },
+  "service": {
+    "name": "odh-dashboard",
+    "port": 8943
+  }
+}</code></pre>
+
+<p>Then run <code>npm run validate:ports</code> to confirm no conflicts. The pre-commit hook will also check automatically.</p>
+
+<h2>Quiz</h2>
+
+<div class="quiz">
+  <p class="quiz-question">1. What does the proxy's <code>pathRewrite</code> do?</p>
+  <ul class="quiz-options" data-answer="b">
+    <li data-option="a">Changes the HTTP method from GET to POST</li>
+    <li data-option="b">Replaces the matched path prefix before forwarding to the BFF</li>
+    <li data-option="c">Rewrites the response JSON before sending to the browser</li>
+    <li data-option="d">Redirects the browser to a different URL</li>
+  </ul>
+</div>
+
+<div class="quiz">
+  <p class="quiz-question">2. If <code>"authorize": true</code>, what does the host proxy add to forwarded requests?</p>
+  <ul class="quiz-options" data-answer="c">
+    <li data-option="a">A CSRF token in a cookie</li>
+    <li data-option="b">The host's admin password</li>
+    <li data-option="c">The logged-in user's auth token as a header</li>
+    <li data-option="d">The Kubernetes cluster certificate</li>
+  </ul>
+</div>
+
+<div class="quiz">
+  <p class="quiz-question">3. Why does each module need a unique <code>local.port</code>?</p>
+  <ul class="quiz-options" data-answer="a">
+    <li data-option="a">Multiple modules can run simultaneously in dev; same port = crash</li>
+    <li data-option="b">Kubernetes requires unique port numbers per namespace</li>
+    <li data-option="c">The browser can only connect to one port at a time</li>
+    <li data-option="d">npm refuses to install packages with duplicate ports</li>
+  </ul>
+</div>
+
+<div class="quiz">
+  <p class="quiz-question">4. When does <code>validate:ports</code> run automatically?</p>
+  <ul class="quiz-options" data-answer="d">
+    <li data-option="a">When you run <code>npm install</code></li>
+    <li data-option="b">When you start the dev server</li>
+    <li data-option="c">When you open the browser</li>
+    <li data-option="d">In the pre-commit hook and in CI</li>
+  </ul>
+</div>
+
+<div class="quiz">
+  <p class="quiz-question">5. The browser sends <code>GET /_bff/openshell/api/v1/workspaces</code>. After proxy rewrite, what URL does the BFF receive?</p>
+  <ul class="quiz-options" data-answer="b">
+    <li data-option="a"><code>/_bff/openshell/api/v1/workspaces</code> (unchanged)</li>
+    <li data-option="b"><code>/api/v1/workspaces</code></li>
+    <li data-option="c"><code>/v1/workspaces</code></li>
+    <li data-option="d"><code>/openshell/api/v1/workspaces</code></li>
+  </ul>
+</div>
+
+<script>
+document.querySelectorAll('.quiz-options').forEach(ul => {
+  const answer = ul.dataset.answer;
+  ul.querySelectorAll('li').forEach(li => {
+    li.addEventListener('click', () => {
+      ul.querySelectorAll('li').forEach(l => l.classList.remove('correct', 'incorrect'));
+      if (li.dataset.option === answer) {
+        li.classList.add('correct');
+      } else {
+        li.classList.add('incorrect');
+        ul.querySelector(`[data-option="${answer}"]`).classList.add('correct');
+      }
+    });
+  });
+});
+</script>
+
+<h2>What's Next</h2>
+
+<ul>
+  <li><strong>Lesson 7:</strong> The Spike Explainer &mdash; what SPIKE.md and FEDERATION-STRATEGY.md are really saying, translated for beginners</li>
+  <li><strong>Ready to code?</strong> Use the <a href="../reference/89723-file-checklist.html">file checklist</a> and scaffold <code>packages/openshell/package.json</code></li>
+</ul>
+
+<hr>
+
+<p><a href="./0005-host-wrapper-and-mock-bff.html">&larr; Previous: Host Wrapper &amp; Mock BFF</a></p>
+
+</body>
+</html>

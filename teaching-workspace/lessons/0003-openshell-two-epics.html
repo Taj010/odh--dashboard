@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lesson 3: OpenShell — Two Epics, One Feature</title>
+  <link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body>
+
+<h1>Lesson 3: OpenShell — Two Epics, One Feature</h1>
+
+<p><strong>Goal:</strong> Understand how the two OpenShell epics relate, which stories are <em>your</em> frontend work, and what you need from the upstream team without writing their code.</p>
+
+<nav class="lesson-nav" aria-label="Lesson navigation">
+  <a href="./index.html" class="lesson-nav-index">All lessons</a>
+  <a href="./0002-jira-ticket-hierarchy.html" class="lesson-nav-prev">← Lesson 2: Jira hierarchy</a>
+  <a href="./0004-89723-acceptance-criteria.html" class="lesson-nav-next">Lesson 4: 89723 AC →</a>
+</nav>
+
+<p><a href="../reference/openshell-dependency-map.html">Dependency map (reference)</a></p>
+
+<h2>The One-Sentence Version</h2>
+
+<p><strong>Epic 2 builds the product in the upstream repo; Epic 1 wraps that product inside odh-dashboard.</strong> You work in Epic 1. Epic 2 is your supplier — you import their pages and call their API shapes through a thin host adapter.</p>
+
+<h2>Two Epics, Two Repos</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th></th>
+      <th>Epic 1 — odh-dashboard</th>
+      <th>Epic 2 — upstream</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Jira</strong></td>
+      <td><a href="https://redhat.atlassian.net/browse/RHOAIENG-81030">RHOAIENG-81030</a></td>
+      <td><a href="https://redhat.atlassian.net/browse/RHOAIENG-87732">RHOAIENG-87732</a></td>
+    </tr>
+    <tr>
+      <td><strong>Repo</strong></td>
+      <td><code>odh-dashboard</code></td>
+      <td><code>openshell-dashboard</code></td>
+    </tr>
+    <tr>
+      <td><strong>Who</strong></td>
+      <td>You (frontend integration)</td>
+      <td>Derek Xu / Razzmatazz (upstream product)</td>
+    </tr>
+    <tr>
+      <td><strong>Delivers</strong></td>
+      <td>MF plugin shell, host proxy, nav, flags, Cypress</td>
+      <td>Pages, components, API client, Go BFF + SDK</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="callout callout-success">
+  <strong>Rule of thumb:</strong> If the PR changes <code>packages/openshell/</code> or dashboard manifests → Epic 1. If it changes <code>openshell-dashboard</code> on GitHub → Epic 2.
+</div>
+
+<h2>How a Page Load Works</h2>
+
+<p>When a user opens OpenShell workspaces in the RHOAI dashboard, data flows through four layers. You own layers 1 and 2; Epic 2 owns 3 and 4.</p>
+
+<div class="diagram">
+Browser (React in odh shell)
+    │
+    │  fetch("/openshell/api/v1/workspaces")
+    ▼
+Host proxy (odh-dashboard)          ← Epic 1: 89723 proxy config
+    │
+    │  rewrite → sidecar :8943
+    ▼
+OpenShell BFF sidecar (Go)          ← Epic 1: 89726 image; Epic 2: BFF code
+    │
+    │  Go OpenShell SDK (gRPC)
+    ▼
+OpenShell gateway (cluster)           ← RHAISTRAT-1752 (not shipped in RHOAI yet)
+</div>
+
+<p>The <strong>UI pages</strong> themselves are not written from scratch in odh-dashboard. Spike <a href="https://redhat.atlassian.net/browse/RHOAIENG-81066">81066</a> proved you import upstream exports:</p>
+
+<ul>
+  <li><code>./pages</code> — workspace list, sandbox detail</li>
+  <li><code>./components</code>, <code>./api</code>, <code>./types</code>, <code>./slots</code></li>
+</ul>
+
+<p>Your job is the <strong>wrapper</strong>: providers, routing, <code>setApiBasePath('/openshell/api')</code>, navigation callbacks, feature flags.</p>
+
+<h2>Epic 1 Stories — Your Map</h2>
+
+<p>Six stories (including two completed spikes). Color-coded by who does the work:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Ticket</th>
+      <th>Title</th>
+      <th>Layer</th>
+      <th>Your work?</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><a href="https://redhat.atlassian.net/browse/RHOAIENG-81066">81066</a></td>
+      <td>Spike: UI consume in MF plugin</td>
+      <td>Frontend</td>
+      <td>✅ Done (POC)</td>
+    </tr>
+    <tr>
+      <td><a href="https://redhat.atlassian.net/browse/RHOAIENG-81067">81067</a></td>
+      <td>Spike: BFF + gateway</td>
+      <td>Backend</td>
+      <td>📖 Read SPIKE.md only</td>
+    </tr>
+    <tr>
+      <td><a href="https://redhat.atlassian.net/browse/RHOAIENG-89723">89723</a></td>
+      <td>FE package, proxy, routes, page mount</td>
+      <td>Frontend</td>
+      <td><strong>🎯 Start here</strong></td>
+    </tr>
+    <tr>
+      <td><a href="https://redhat.atlassian.net/browse/RHOAIENG-89741">89741</a></td>
+      <td>Auth UX, flags, slots, Cypress</td>
+      <td>Frontend</td>
+      <td><strong>🎯 After 89723</strong></td>
+    </tr>
+    <tr>
+      <td><a href="https://redhat.atlassian.net/browse/RHOAIENG-89740">89740</a></td>
+      <td>Sidecar cluster manifests</td>
+      <td>Infra / platform</td>
+      <td>👀 Awareness only</td>
+    </tr>
+    <tr>
+      <td><a href="https://redhat.atlassian.net/browse/RHOAIENG-89726">89726</a></td>
+      <td>BFF image, auth bridge, integration tests</td>
+      <td>Backend</td>
+      <td>👀 Know the API contract</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>89723 — Your first real story</h3>
+
+<p>Scaffold <code>packages/openshell/</code> (same pattern as <a href="https://github.com/opendatahub-io/odh-dashboard/tree/main/packages/mlflow">mlflow</a>):</p>
+
+<ul>
+  <li>Module Federation remote (<code>remoteEntry.js</code>)</li>
+  <li>Nav entry behind feature flag</li>
+  <li>Routes: list → detail with bookmarkable URLs</li>
+  <li>Mount upstream pages inside the dashboard shell</li>
+  <li>Proxy: browser calls <code>/openshell/api/...</code> on host origin</li>
+</ul>
+
+<div class="callout callout-success">
+  <strong>Mocked BFF is fine.</strong> You do not need a live gateway or real sidecar to close 89723. Return fake workspace JSON from mocks.
+</div>
+
+<h3>89741 — Polish and tests</h3>
+
+<p>Blocked by 89723. Adds:</p>
+
+<ul>
+  <li>Dual-auth banner when passthrough token is unavailable</li>
+  <li>Session-expired handler wiring</li>
+  <li>Feature flags for WebSocket-dependent UI (terminal, file transfer)</li>
+  <li>Cross-module slots / extension points</li>
+  <li>Cypress smoke tests</li>
+</ul>
+
+<p>Still closable with mocked BFF — live gateway is stretch only.</p>
+
+<h2>Epic 2 — What You Need to Know (Not Build)</h2>
+
+<p>Epic 2 has four backend stories assigned to Derek Xu. You will not work these, but they affect your contracts:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Ticket</th>
+      <th>Title</th>
+      <th>Why a frontend dev cares</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>87975</td>
+      <td>Restructure BFF directories</td>
+      <td>Folder layout only — no UI impact unless build outputs change</td>
+    </tr>
+    <tr>
+      <td>87983</td>
+      <td>SDK client initialization</td>
+      <td>BFF can talk to gateway; enables real data in 89726</td>
+    </tr>
+    <tr>
+      <td>87985</td>
+      <td>Define endpoints + API spec</td>
+      <td><strong>Your mock responses should match this spec</strong></td>
+    </tr>
+    <tr>
+      <td>88012</td>
+      <td>Implement API spec</td>
+      <td>Real <code>/openshell/api/v1/...</code> responses; auth config shape for 89741</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="callout callout-warning">
+  <strong>Contract, not implementation.</strong> You need to know <em>what JSON comes back</em> and <em>what providers upstream pages expect</em>. You do not need to read Go SDK code.
+</div>
+
+<h3>Upstream coupling (from spike 81066)</h3>
+
+<p>Upstream pages may still import standalone-app internals (<code>authStore</code>, <code>AlertContext</code>, role hooks). Your host wrapper must supply replacements until upstream decouples. File upstream follow-ups when you hit these — that is Derek's Epic 2, not your blocker for 89723.</p>
+
+<h3>Shared dependencies to watch</h3>
+
+<ul>
+  <li><strong>React + PatternFly</strong> — shared MF singletons (good)</li>
+  <li><strong>TanStack Query</strong> — v5 in module, v4 in host; keep module-local</li>
+  <li><strong>react-router</strong> — v6/v7 mismatch noted in spike; watch for navigation bugs</li>
+</ul>
+
+<h2>Dependency Order</h2>
+
+<div class="diagram">
+DONE:  81066 (UI spike) ──┐
+DONE:  81067 (BFF spike) ─┤
+                           │
+         ┌─────────────────┴─────────────────┐
+         ▼                                   ▼
+    89723 (FE scaffold)              89740 (manifests)
+         │                                   │
+         ▼                                   ▼
+    89741 (auth UX, Cypress)           89726 (real BFF)
+         │                                   │
+         └─────────── both optional ─────────┘
+                    for 89741 close
+</div>
+
+<p><strong>Actionable today:</strong> 89723 with mocked BFF. Parallel infra work (89740) does not block you.</p>
+
+<p><strong>Hard ship blocker (unchanged):</strong> <a href="https://redhat.atlassian.net/browse/RHAISTRAT-1752">RHAISTRAT-1752</a> — no OpenShell gateway in RHOAI clusters yet. You can build and test; you cannot ship production data flows until the gateway lands.</p>
+
+<h2>89723 vs agent-ops</h2>
+
+<p>Spike 81066 used a separate <code>packages/openshell</code> package so it would not interfere with existing <code>agent-ops</code> (Sandbox CR path, port 8843). Later tickets may merge into <code>agent-ops</code>, but the <strong>pattern</strong> is the same as mlflow:</p>
+
+<ul>
+  <li>Thin ODH adapter package</li>
+  <li>Upstream UI as npm dependency</li>
+  <li>Dedicated BFF sidecar port (8943 for OpenShell vs 8843 for agent-ops)</li>
+</ul>
+
+<p>Both paths coexist per the parent epic — native Sandbox CR deploy (Tracks 1–2) and OpenShell gateway admin (Track 3).</p>
+
+<h2>What to Read Before Coding</h2>
+
+<ol>
+  <li>Spike docs: <code>packages/openshell-spike/SPIKE.md</code> and <code>FEDERATION-STRATEGY.md</code> (on spike branch)</li>
+  <li>Pattern reference: <code>packages/mlflow/</code> — closest living example</li>
+  <li>Module federation: <a href="https://github.com/opendatahub-io/odh-dashboard/blob/main/docs/module-federation.md">docs/module-federation.md</a></li>
+  <li>Sidecar model: <a href="https://github.com/opendatahub-io/odh-dashboard/blob/main/docs/inter-bff-communication.md">docs/inter-bff-communication.md</a></li>
+</ol>
+
+<h2>Quiz</h2>
+
+<div class="quiz">
+  <p class="quiz-question">1. Where do OpenShell workspace list pages come from?</p>
+  <ul class="quiz-options" data-answer="b">
+    <li data-option="a">You write them from scratch in odh-dashboard</li>
+    <li data-option="b">Imported from upstream openshell-dashboard npm exports</li>
+    <li data-option="c">Copied from the agent-ops package as-is</li>
+    <li data-option="d">Generated automatically by Module Federation</li>
+  </ul>
+</div>
+
+<div class="quiz">
+  <p class="quiz-question">2. Which story should you implement first?</p>
+  <ul class="quiz-options" data-answer="c">
+    <li data-option="a">89726 — BFF auth bridge and image build</li>
+    <li data-option="b">89740 — cluster sidecar manifests</li>
+    <li data-option="c">89723 — FE package, proxy, routes, page mount</li>
+    <li data-option="d">88012 — upstream API implementation</li>
+  </ul>
+</div>
+
+<div class="quiz">
+  <p class="quiz-question">3. Why does Epic 2 still matter to you?</p>
+  <ul class="quiz-options" data-answer="a">
+    <li data-option="a">It defines API shapes and UI exports you consume</li>
+    <li data-option="b">You must pair-program on every upstream PR</li>
+    <li data-option="c">Epic 2 blocks all Epic 1 frontend work</li>
+    <li data-option="d">It replaces Module Federation with a new pattern</li>
+  </ul>
+</div>
+
+<script>
+document.querySelectorAll('.quiz-options').forEach(ul => {
+  const answer = ul.dataset.answer;
+  ul.querySelectorAll('li').forEach(li => {
+    li.addEventListener('click', () => {
+      ul.querySelectorAll('li').forEach(l => l.classList.remove('correct', 'incorrect'));
+      if (li.dataset.option === answer) {
+        li.classList.add('correct');
+      } else {
+        li.classList.add('incorrect');
+        ul.querySelector(`[data-option="${answer}"]`).classList.add('correct');
+      }
+    });
+  });
+});
+</script>
+
+<h2>What's Next?</h2>
+
+<ul>
+  <li><strong><a href="./0004-89723-acceptance-criteria.html">Lesson 4:</a></strong> Walk through 89723 acceptance criteria line-by-line</li>
+  <li><strong><a href="./0005-host-wrapper-and-mock-bff.html">Lesson 5:</a></strong> Host wrapper — providers, callbacks, and mock BFF</li>
+</ul>
+
+<hr>
+
+<p><em>Questions? Ask your teacher (the agent) — paste a ticket AC line and we'll translate it to files to touch.</em></p>
+
+<nav class="lesson-nav lesson-nav-footer" aria-label="Lesson navigation">
+  <a href="./index.html" class="lesson-nav-index">All lessons</a>
+  <a href="./0002-jira-ticket-hierarchy.html" class="lesson-nav-prev">← Lesson 2: Jira hierarchy</a>
+  <a href="./0004-89723-acceptance-criteria.html" class="lesson-nav-next">Lesson 4: 89723 AC →</a>
+</nav>
+
+</body>
+</html>
