@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lesson 8: One BFF or Two?</title>
+  <link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body>
+
+<nav class="lesson-nav" aria-label="Lesson navigation">
+  <a href="./index.html" class="lesson-nav-index">All lessons</a>
+  <a href="./0007-spike-explainer.html" class="lesson-nav-prev">← Lesson 7: Spike</a>
+  <a href="../reference/one-vs-two-bffs.html" class="lesson-nav-next">Cheat sheet →</a>
+</nav>
+
+<h1>Lesson 8: One BFF or Two?</h1>
+
+<p><strong>Goal:</strong> Split the “one BFF or two?” meeting question into three different questions, so you can tell what is already decided and what is still mushy.</p>
+
+<div class="callout callout-info">
+  <strong>Primary source:</strong>
+  <a href="https://github.com/d0w/openshell-bff-examples">d0w/openshell-bff-examples</a>
+  — three tiny Go modules that show how downstream (ODH) can reuse upstream (OpenShell) BFF code. Read that repo after this lesson.
+</div>
+
+<!-- ───────────── PART 1 ───────────── -->
+
+<h2>Part 1: People are mixing three questions</h2>
+
+<p>When someone says “do we need one BFF or two for Agent Ops + OpenShell?”, they might mean any of these:</p>
+
+<table>
+  <thead>
+    <tr><th>#</th><th>Question</th><th>Short answer</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>1</td>
+      <td><strong>Two backends?</strong> Does listing Sandbox CRs use the same server as administering OpenShell workspaces?</td>
+      <td><strong>No.</strong> Two different backends. This is locked.</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td><strong>Two processes?</strong> Do we run two Go binaries (two ports, two sidecars) in the dashboard pod?</td>
+      <td><strong>Today: yes.</strong> A meeting can still change this. Undecided long-term.</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td><strong>Two codebases?</strong> If ODH needs extra OpenShell behavior, do we fork the BFF or import it as a library?</td>
+      <td>The examples repo says: <strong>import and decorate</strong>, don’t fork.</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="callout callout-warning">
+  <strong>The mix-up:</strong> Question 3 (how to <em>share Go code</em>) is not the same as question 2 (how many <em>processes</em> run). You can reuse OpenShell’s library <em>and</em> still run two binaries. You can also merge into one binary later. Code reuse does not force one process.
+</div>
+
+<div class="analogy-box">
+  <strong>Restaurant analogy:</strong> Agent Ops is the kitchen window that talks to the walk-in fridge (Kubernetes Sandbox CRs). OpenShell admin is the office that talks to the security desk (the gateway). Those are two jobs. Whether you hire two people or one person who does both jobs is a staffing choice. Whether the office reuses the security desk’s handbook instead of rewriting it is a third choice.
+</div>
+
+<!-- ───────────── PART 2 ───────────── -->
+
+<h2>Part 2: Two backends (this part is locked)</h2>
+
+<p>Lesson 1 taught: browser → BFF → Kubernetes. That is only the <span class="term">CR path</span> (Tracks 1 and 2 — list/deploy agents).</p>
+
+<p>Track 3 (your OpenShell admin UI) is a <span class="term">gateway path</span>. Different API, different auth, different owner.</p>
+
+<div class="compare-grid">
+  <div class="compare-card">
+    <h3>CR path (already shipping)</h3>
+    <p><code>packages/agent-ops/bff/</code></p>
+    <ul>
+      <li>Port <strong>8843</strong></li>
+      <li>Talks to Kubernetes Sandbox CRs</li>
+      <li>Does SAR/RBAC with the user’s OpenShift token</li>
+      <li>OpenAPI: <code>agent-ops.yaml</code></li>
+      <li>UI: Agent Deployments list / deploy wizard</li>
+    </ul>
+  </div>
+  <div class="compare-card">
+    <h3>Gateway path (Track 3)</h3>
+    <p>Upstream OpenShell BFF (not rewritten in ODH)</p>
+    <ul>
+      <li>Port <strong>8943</strong></li>
+      <li>Talks to OpenShell gateway over gRPC</li>
+      <li>Relay-only: forwards a token, gateway enforces RBAC</li>
+      <li>API owned by Epic 2 (Derek / upstream)</li>
+      <li>UI: workspaces, policies, credentials</li>
+    </ul>
+  </div>
+</div>
+
+<div class="diagram">
+CR path (Tracks 1–2)
+  Browser  →  host proxy /agent-ops/api  →  agent-ops BFF :8843  →  K8s Sandbox CRs
+
+Gateway path (Track 3)
+  Browser  →  host proxy /_bff/openshell/api  →  OpenShell BFF :8943  →  Gateway (gRPC)
+</div>
+
+<p>The frontend already treats them as two APIs. See <a href="./0006-package-json-deep-dive.html">Lesson 6</a> (proxy) and <a href="./0007-spike-explainer.html">Lesson 7</a> (spike: do not rewrite the OpenShell BFF).</p>
+
+<div class="callout callout-success">
+  <strong>Locked:</strong> Spike 81067 rejected “write our own OpenShell BFF inside ODH.” Upstream already has one that speaks gRPC to the gateway. Reimplementing it doubles the work every time the gateway API moves.
+</div>
+
+<!-- ───────────── PART 3 ───────────── -->
+
+<h2>Part 3: Two processes (current plan, not a law of physics)</h2>
+
+<p>Right now the dashboard would run <strong>two Go servers</strong> next to the host:</p>
+
+<ul>
+  <li>agent-ops BFF on <code>8843</code> — CR path</li>
+  <li>OpenShell BFF on <code>8943</code> — gateway path</li>
+</ul>
+
+<p>That is what “two BFFs” meant in the meeting. Two binaries, two ports, two proxy rules, two deploy/health stories, two things the operator must keep alive.</p>
+
+<p>That <em>does</em> complicate the pod. It is also the simple way to keep ownership clean: Agent Ops team owns CR APIs; OpenShell upstream owns gateway APIs; ODH just ships their binary (story 89726) as a sidecar.</p>
+
+<div class="decision-card">
+  <div class="decision-label undecided">Undecided: merge into one process later?</div>
+  <p>Someone can propose: “agent-ops BFF imports OpenShell as a Go module and serves both route trees in one binary.” That uses the examples-repo pattern (Part 4). It is a <em>possible</em> later structure. It is <strong>not</strong> what 89723 needs, and it is not locked.</p>
+  <p>If they merge processes, your React still calls two URL prefixes. The host proxy still rewrites two paths. Only Kubernetes wiring (one container vs two) changes.</p>
+</div>
+
+<div class="analogy-box">
+  <strong>Why two processes feels messy:</strong> two health checks, two log streams, two sets of env vars, two auth stories (SAR vs relay), two version pins. Why keeping them separate feels safer: a crash in OpenShell BFF should not take down Agent Deployments, and upstream can release a BFF version without an agent-ops Go bump.
+</div>
+
+<!-- ───────────── PART 4 ───────────── -->
+
+<h2>Part 4: The examples repo is about code reuse, not “kill agent-ops”</h2>
+
+<p>The spike notes you pasted (“OpenShell Migration Strategies”) and <a href="https://github.com/d0w/openshell-bff-examples">openshell-bff-examples</a> answer question 3:</p>
+
+<p><em>If ODH is downstream of OpenShell’s Go BFF, how do we customize it without forking?</em></p>
+
+<p>Upstream publishes packages. Downstream is a tiny <code>main.go</code> that wires them. Go <a href="https://go.dev/doc/effective_go#embedding">embedding</a> is how you override one method and keep the rest.</p>
+
+<h3>The three folders</h3>
+
+<table>
+  <thead>
+    <tr><th>Folder</th><th>What it proves</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>upstream/</code></td>
+      <td>A real BFF shaped for reuse: Chi router, service <em>interfaces</em>, handlers that only see interfaces, <code>server.NewServer(cfg, svcs, opts...)</code> so extra routes can be bolted on.</td>
+    </tr>
+    <tr>
+      <td><code>downstream-reuse/</code></td>
+      <td>ODH runs upstream <strong>100% unchanged</strong>. Same handlers, same services. This matches “ship their binary / import their module, add nothing.”</td>
+    </tr>
+    <tr>
+      <td><code>downstream-partialreuse/</code></td>
+      <td>ODH still uses <code>NewServer</code> + upstream handlers, but <strong>decorates</strong> sandbox create, and <strong>adds</strong> routes upstream never heard of (<code>/api/audit</code>, <code>/debug/ping</code>).</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>The one trick: embed, override one method</h3>
+
+<p>Handlers talk to a <code>SandboxService</code> interface, not a concrete struct. Downstream embeds that interface and redefines only <code>CreateSandbox</code>. Get/List/Delete fall through. Upstream’s HTTP handler does not change — it still calls <code>CreateSandbox</code>, and Go dispatches to the decorator.</p>
+
+<pre><code>type Service struct {
+    upstreamservices.SandboxService // inherit Get, List, Delete
+}
+
+func (s *Service) CreateSandbox(ctx context.Context, name string) (*Sandbox, error) {
+    sb, err := s.SandboxService.CreateSandbox(ctx, name) // real work stays upstream
+    sb.Name = name + " (downstream-managed)"             // ODH-only policy
+    sb.Status = "provisioning"
+    return sb, err
+}</code></pre>
+
+<p>That is the decorator pattern with almost no forwarding boilerplate — Go promotes the embedded methods for you (<a href="https://go.dev/doc/effective_go#embedding">Effective Go — Embedding</a>).</p>
+
+<h3>New routes vs changed behavior</h3>
+
+<p>From the partial-reuse README, pick the smallest tool:</p>
+
+<table>
+  <thead>
+    <tr><th>You need…</th><th>Do this</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Zero changes</td>
+      <td><code>downstream-reuse</code>: import and run</td>
+    </tr>
+    <tr>
+      <td>Same method, different behavior</td>
+      <td>Embed + override that one method</td>
+    </tr>
+    <tr>
+      <td>A new method next to the old ones</td>
+      <td>Embed + extend; new interface; new handler</td>
+    </tr>
+    <tr>
+      <td>A route OpenShell does not have</td>
+      <td><code>server.WithRoutes(...)</code> (e.g. audit stats)</td>
+    </tr>
+    <tr>
+      <td>Different auth than upstream</td>
+      <td>Raw Chi <code>Option</code> with your own middleware</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>Printable version: <a href="../reference/one-vs-two-bffs.html">one vs two BFFs cheat sheet</a>.</p>
+
+<!-- ───────────── PART 5 ───────────── -->
+
+<h2>Part 5: What this means for <em>your</em> work</h2>
+
+<p>Ticket <a href="./0004-89723-acceptance-criteria.html">89723</a> is frontend: wrapper, proxy, mock BFF. You do not choose 1 vs 2 processes.</p>
+
+<ul>
+  <li>Your UI already has two fetch prefixes if both features exist: <code>/agent-ops/api</code> and <code>/_bff/openshell/api</code> (see <a href="./0007-spike-explainer.html">Lesson 7</a>).</li>
+  <li>Mocks still sit in front of those prefixes. Process count behind the proxy can change later.</li>
+  <li>Do not put OpenShell workspace calls into the agent-ops BFF “just to have one BFF.” That is the rewrite the spike rejected, unless a later ADR explicitly merges processes <em>by importing upstream</em>.</li>
+</ul>
+
+<div class="callout callout-info">
+  <strong>Ask in the next architecture meeting:</strong> “Are we debating two <em>processes</em>, or how ODH <em>customizes</em> the OpenShell module?” If they say “complicates structure,” they usually mean two sidecars (question 2), not two backends (question 1).
+</div>
+
+<p>Stuck? Ask the teacher (this agent) a follow-up. Point at the row in the table that still feels like one blob.</p>
+
+<h2>Practice: pick the pattern</h2>
+
+<p>Click the matching answer. Wrong clicks show the right row.</p>
+
+<div class="quiz">
+  <p class="quiz-question">A. ODH wants OpenShell workspaces with no extra Go behavior.</p>
+  <ul class="quiz-options" data-answer="b">
+    <li data-option="a">Fork upstream then edit CreateSandbox in their tree</li>
+    <li data-option="b">Reuse upstream as-is via a binary or module</li>
+    <li data-option="c">Merge it into agent-ops handlers for those CRs</li>
+    <li data-option="d">Call the OpenShell gateway from the React app</li>
+  </ul>
+</div>
+
+<div class="quiz">
+  <p class="quiz-question">B. ODH must tag every created sandbox with a RHOAI-only name suffix.</p>
+  <ul class="quiz-options" data-answer="c">
+    <li data-option="a">Add Chi route that never calls CreateSandbox</li>
+    <li data-option="b">Rewrite SandboxHandler and copy all four methods</li>
+    <li data-option="c">Embed the service and override CreateSandbox only</li>
+    <li data-option="d">Put that suffix into React before submit</li>
+  </ul>
+</div>
+
+<div class="quiz">
+  <p class="quiz-question">C. ODH needs <code>GET /api/audit/sandboxes</code>, which upstream does not have.</p>
+  <ul class="quiz-options" data-answer="a">
+    <li data-option="a">Attach that new handler via the server.WithRoutes helper</li>
+    <li data-option="b">Override CreateSandbox and just hope that audit appears</li>
+    <li data-option="c">List those Sandbox CRs via agent-ops port 8843</li>
+    <li data-option="d">Ask the host proxy to invent audit JSON</li>
+  </ul>
+</div>
+
+<div class="quiz">
+  <p class="quiz-question">D. Product wants the Agent Deployments table (running Sandbox CRs).</p>
+  <ul class="quiz-options" data-answer="d">
+    <li data-option="a">Decorate OpenShell CreateSandbox in the downstream Go code</li>
+    <li data-option="b">Ship only OpenShell BFF and drop agent-ops BFF</li>
+    <li data-option="c">Point the OpenShell proxy at agent-ops port 8843</li>
+    <li data-option="d">Just use the existing agent-ops BFF CR path</li>
+  </ul>
+</div>
+
+<h2>Quiz</h2>
+
+<div class="quiz">
+  <p class="quiz-question">1. The CR path and the OpenShell path talk to:</p>
+  <ul class="quiz-options" data-answer="a">
+    <li data-option="a">CR path hits Kubernetes; OpenShell path hits gateway</li>
+    <li data-option="b">CR path hits gateway; OpenShell path hits Kubernetes</li>
+    <li data-option="c">CR path hits browser; OpenShell path hits cluster</li>
+    <li data-option="d">CR path hits Cypress; OpenShell path hits webpack</li>
+  </ul>
+</div>
+
+<div class="quiz">
+  <p class="quiz-question">2. What did spike 81067 reject for the OpenShell BFF?</p>
+  <ul class="quiz-options" data-answer="b">
+    <li data-option="a">Ship the upstream binary as a configured sidecar</li>
+    <li data-option="b">Rewrite the OpenShell BFF from scratch entirely</li>
+    <li data-option="c">Mock the OpenShell JSON during the frontend work</li>
+    <li data-option="d">Proxy the OpenShell API through the dashboard host</li>
+  </ul>
+</div>
+
+<div class="quiz">
+  <p class="quiz-question">3. Embedding a service in the examples lets downstream:</p>
+  <ul class="quiz-options" data-answer="a">
+    <li data-option="a">Override one method and inherit the rest unchanged</li>
+    <li data-option="b">Rewrite one handler and delete the rest unchanged</li>
+    <li data-option="c">Publish one binary and ignore the rest unchanged</li>
+    <li data-option="d">Fork one module and rename the rest unchanged</li>
+  </ul>
+</div>
+
+<div class="quiz">
+  <p class="quiz-question">4. A new <code>/api/audit</code> route OpenShell does not have should:</p>
+  <ul class="quiz-options" data-answer="b">
+    <li data-option="a">Embed then override CreateSandbox on that service</li>
+    <li data-option="b">Attach a new handler via the server.WithRoutes</li>
+    <li data-option="c">Copy upstream main.go and hope nobody notices</li>
+    <li data-option="d">Ask the frontend to call Kubernetes by itself</li>
+  </ul>
+</div>
+
+<div class="quiz">
+  <p class="quiz-question">5. For ticket 89723, one vs two BFF processes:</p>
+  <ul class="quiz-options" data-answer="b">
+    <li data-option="a">Blocks you until they merge both BFF binaries</li>
+    <li data-option="b">Changes none of wrapper, proxy, or mock work</li>
+    <li data-option="c">Forces you to write Go for Sandbox CRs</li>
+    <li data-option="d">Forces you to rewrite OpenShell pages in TypeScript</li>
+  </ul>
+</div>
+
+<div class="quiz">
+  <p class="quiz-question">6. “Two BFFs complicate structure” in a meeting usually means:</p>
+  <ul class="quiz-options" data-answer="a">
+    <li data-option="a">Two running processes, two ports, two deploy stories</li>
+    <li data-option="b">Two React versions, two ports, two deploy stories</li>
+    <li data-option="c">Two CSS themes, two ports, two deploy stories</li>
+    <li data-option="d">Two Jira boards, two ports, two deploy stories</li>
+  </ul>
+</div>
+
+<script src="../assets/quiz.js"></script>
+
+<h2>Read next (high-trust)</h2>
+
+<ol>
+  <li><a href="https://github.com/d0w/openshell-bff-examples">openshell-bff-examples</a> — start with the three READMEs, then <code>downstream-partialreuse/pkg/services/sandbox.go</code>.</li>
+  <li><a href="https://go.dev/doc/effective_go#embedding">Effective Go: Embedding</a> — why override-one-method works.</li>
+  <li><a href="./0009-bff-anatomy.html">Lesson 9: What a BFF is made of</a> — shell vs filling, what to copy vs not merge.</li>
+</ol>
+
+<nav class="lesson-nav lesson-nav-footer" aria-label="Lesson navigation">
+  <a href="./0007-spike-explainer.html" class="lesson-nav-prev">← Lesson 7: Spike</a>
+  <a href="./index.html" class="lesson-nav-index">All lessons</a>
+  <a href="./0009-bff-anatomy.html" class="lesson-nav-next">Lesson 9: BFF anatomy →</a>
+</nav>
+
+</body>
+</html>

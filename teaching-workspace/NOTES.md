@@ -69,8 +69,9 @@
 5. ✅ Host wrapper + mocked BFF setup
 6. ✅ package.json deep dive (MF block, proxy, ports, validate:ports)
 7. ✅ Spike explainer (SPIKE.md + FEDERATION-STRATEGY.md for beginners)
-8. ⬜ Two deployment paths (native vs OpenShell)
-9. ⬜ The development workflow
+8. ✅ One BFF or two? (CR path vs gateway path vs process count vs code reuse)
+9. ✅ BFF anatomy (shell vs filling; what to generalize)
+10. ⬜ The development workflow
 
 ## Session Log
 - **Session 1 (Sep 1, 2026)**: 
@@ -93,3 +94,12 @@
   - Lesson 7: Spike explainer — translated SPIKE.md + FEDERATION-STRATEGY.md for beginners. Covered: what a spike is, the four big questions (UI source, MF ownership, BFF packaging, runtime boundary), proxy chain step-by-step, mock-to-real BFF progression (3 stages), rejected options and why, shared vs singleton deps
   - Updated glossary with 10 new terms (proxy, pathRewrite, remoteEntry, singleton, remote/host, spike, iframe, SPA, gRPC, sidecar, validate:ports)
   - User's key confusion points addressed: what is an API proxy, how mock data connects to real BFF later, what the spike findings actually mean
+- **Session 5 (Sep 2, 2026)**:
+  - Lesson 8: unmixed “1 vs 2 BFFs” into backends vs processes vs code reuse
+  - Sources: user’s spike-notes summary, meeting worry about two processes, https://github.com/d0w/openshell-bff-examples
+  - Reference cheat sheet + glossary terms (CR path, gateway path, embedding, decorator)
+  - Learning record 0004: user already had the notes; the gap was mixing the three questions
+- **Session 6 (Sep 2, 2026)**:
+  - Lesson 9: BFF anatomy from agent-ops cmd/main.go + app.go + bff-go.md
+  - User asked what parts (ports, API connect, rules) can be grouped for OpenShell vs CR
+  - Answer: copy shell pattern; do not merge fillings (K8s/SAR/OpenAPI)

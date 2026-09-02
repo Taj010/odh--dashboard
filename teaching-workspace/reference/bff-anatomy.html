@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reference: BFF Anatomy</title>
+  <link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body>
+
+<nav class="lesson-nav" aria-label="Document navigation">
+  <a href="../lessons/index.html" class="lesson-nav-index">All lessons</a>
+  <a href="../lessons/0009-bff-anatomy.html" class="lesson-nav-prev">← Lesson 9</a>
+  <a href="./glossary.html" class="lesson-nav-next">Glossary →</a>
+</nav>
+
+<h1>BFF Anatomy — Cheat Sheet</h1>
+
+<p>Print this. Full lesson: <a href="../lessons/0009-bff-anatomy.html">Lesson 9</a>. CR code: <code>packages/agent-ops/bff/</code>. Recipe: <code>.claude/rules/bff-go.md</code>.</p>
+
+<h2>Sandwich</h2>
+
+<ul>
+  <li><strong>Bread / shell</strong> — port, health, logs, CORS, read token header. Copy the pattern.</li>
+  <li><strong>Filling / domain</strong> — backend client, OpenAPI, permission rules. Do not merge CR with OpenShell.</li>
+</ul>
+
+<h2>Layers</h2>
+
+<table>
+  <thead>
+    <tr><th>Layer</th><th>Share?</th><th>CR</th><th>OpenShell</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Host proxy</td>
+      <td>Pattern</td>
+      <td><code>/agent-ops/api</code> → <code>/api</code></td>
+      <td><code>/_bff/openshell/api</code> → <code>/api</code></td>
+    </tr>
+    <tr>
+      <td>Ports</td>
+      <td>Pattern (unique values)</td>
+      <td>8843</td>
+      <td>Not 8843</td>
+    </tr>
+    <tr>
+      <td>HTTP server, logs, CORS, TLS flags</td>
+      <td>Pattern</td>
+      <td><code>cmd/main.go</code></td>
+      <td><code>server.NewServer</code></td>
+    </tr>
+    <tr>
+      <td>Liveness</td>
+      <td>Pattern</td>
+      <td><code>/healthcheck</code></td>
+      <td><code>/healthz</code> (spike)</td>
+    </tr>
+    <tr>
+      <td>Read token header</td>
+      <td>Pattern</td>
+      <td><code>x-forwarded-access-token</code></td>
+      <td>Same header</td>
+    </tr>
+    <tr>
+      <td>Auth <em>rules</em></td>
+      <td>Unique</td>
+      <td>K8s SAR / impersonation</td>
+      <td>Relay; gateway RBAC + OIDC</td>
+    </tr>
+    <tr>
+      <td>API connect</td>
+      <td>Unique</td>
+      <td>K8s Sandbox CRs</td>
+      <td>gRPC SDK → gateway</td>
+    </tr>
+    <tr>
+      <td>OpenAPI + handlers</td>
+      <td>Unique</td>
+      <td><code>agent-ops.yaml</code></td>
+      <td>Epic 2 spec</td>
+    </tr>
+    <tr>
+      <td>Container / Service</td>
+      <td>Pattern</td>
+      <td>agent-ops manifests</td>
+      <td>89740 sidecar</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Three “shares”</h2>
+
+<ol>
+  <li><strong>Copy the pattern</strong> — proxy block, flags, health.</li>
+  <li><strong>Reuse the library</strong> — import/decorate OpenShell (Lesson 8).</li>
+  <li><strong>Do not merge fillings</strong> — no shared SAR, K8s client, or single OpenAPI.</li>
+</ol>
+
+<p>One process later still means two fillings (two route trees).</p>
+
+<p>Related: <a href="./one-vs-two-bffs.html">one vs two BFFs</a> · <a href="./glossary.html">Glossary</a></p>
+
+<nav class="lesson-nav lesson-nav-footer" aria-label="Document navigation">
+  <a href="../lessons/0009-bff-anatomy.html" class="lesson-nav-prev">← Lesson 9</a>
+  <a href="../lessons/index.html" class="lesson-nav-index">All lessons</a>
+  <a href="./glossary.html" class="lesson-nav-next">Glossary →</a>
+</nav>
+
+</body>
+</html>

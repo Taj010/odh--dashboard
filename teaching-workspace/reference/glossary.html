@@ -48,8 +48,33 @@
 
 <div class="glossary-entry">
   <p class="glossary-term">BFF (Backend-for-Frontend)</p>
-  <p>A Go server that sits between the browser and Kubernetes. It handles authentication, business logic, and translates between the UI and the cluster. The browser cannot talk directly to Kubernetes.</p>
-  <p class="see-also">Location: <code>packages/agent-ops/bff/</code></p>
+  <p>A Go server that sits between the browser and a backend. Agent-ops BFF talks to Kubernetes. OpenShell BFF talks to the gateway. The browser cannot talk to those backends directly.</p>
+  <p class="see-also">See also: CR path, gateway path, <a href="./one-vs-two-bffs.html">one vs two BFFs</a></p>
+</div>
+
+<div class="glossary-entry">
+  <p class="glossary-term">BFF shell (bread)</p>
+  <p>The parts every BFF copies: listen port, health check, logs, CORS, timeouts, reading the auth header. Same shape, different values. See <a href="./bff-anatomy.html">BFF anatomy</a>.</p>
+</div>
+
+<div class="glossary-entry">
+  <p class="glossary-term">BFF filling (domain)</p>
+  <p>The parts that are unique to one product: backend client (K8s vs gRPC), OpenAPI document, handlers, permission rules (SAR vs gateway RBAC). Do not merge CR filling with OpenShell filling.</p>
+</div>
+
+<div class="glossary-entry">
+  <p class="glossary-term">Middleware</p>
+  <p>A function that wraps an HTTP handler: run code before/after (auth, CORS, logging, panic recover). Chain: identity → CORS → handler.</p>
+</div>
+
+<div class="glossary-entry">
+  <p class="glossary-term">Handler</p>
+  <p>The Go function for one route (e.g. list agent runtimes). Reads the request, calls a service/repository, writes JSON.</p>
+</div>
+
+<div class="glossary-entry">
+  <p class="glossary-term">Healthcheck</p>
+  <p>A cheap GET route (usually <code>/healthcheck</code>) that means “this process is alive.” Kubernetes probes and contract tests hit it. Different from readiness (“can I reach the gateway?”).</p>
 </div>
 
 <div class="glossary-entry">
@@ -100,6 +125,34 @@
 <div class="glossary-entry">
   <p class="glossary-term">Interceptor</p>
   <p>A webhook-like mechanism that enforces default policies across all sandboxes. Platform admins use interceptors to set org-wide security baselines.</p>
+</div>
+
+<div class="glossary-entry">
+  <p class="glossary-term">CR path</p>
+  <p>Browser → host proxy <code>/agent-ops/api</code> → agent-ops BFF (port 8843) → Kubernetes Sandbox CRs. Tracks 1 and 2 (list/deploy). Auth uses the user’s OpenShift token plus SAR.</p>
+  <p class="see-also">Opposite: gateway path</p>
+</div>
+
+<div class="glossary-entry">
+  <p class="glossary-term">Gateway path</p>
+  <p>Browser → host proxy <code>/_bff/openshell/api</code> → OpenShell BFF (port 8943) → OpenShell gateway (gRPC). Track 3 admin UI. BFF is relay-only; the gateway enforces RBAC.</p>
+  <p class="see-also">Opposite: CR path. Blocked on RHAISTRAT-1752</p>
+</div>
+
+<div class="glossary-entry">
+  <p class="glossary-term">Upstream / downstream (BFF)</p>
+  <p><strong>Upstream</strong> = OpenShell’s Go BFF, published as a module. <strong>Downstream</strong> = ODH/AgentOps consuming that module. Downstream can run it unchanged or decorate it. Not the same as “two processes in the pod.”</p>
+  <p class="see-also"><a href="https://github.com/d0w/openshell-bff-examples">openshell-bff-examples</a></p>
+</div>
+
+<div class="glossary-entry">
+  <p class="glossary-term">Struct embedding</p>
+  <p>Go composition: put another type inside a struct without a field name. Its methods are promoted. Downstream embeds an upstream service interface and overrides one method; the rest keep working. See <a href="https://go.dev/doc/effective_go#embedding">Effective Go</a>.</p>
+</div>
+
+<div class="glossary-entry">
+  <p class="glossary-term">Decorator (Go BFF)</p>
+  <p>A wrapper that implements the same interface as the thing it wraps, then changes or extends some methods. In the examples repo, downstream’s sandbox <code>Service</code> decorates upstream <code>SandboxService</code>.</p>
 </div>
 
 <div class="glossary-entry">
@@ -235,7 +288,7 @@
 
 <hr>
 
-<p><em>Last updated: Sep 1, 2026 (added MF/proxy terms in session 4)</em></p>
+<p><em>Last updated: Sep 2, 2026 (BFF shell, filling, middleware, handler, healthcheck)</em></p>
 
 </body>
 </html>

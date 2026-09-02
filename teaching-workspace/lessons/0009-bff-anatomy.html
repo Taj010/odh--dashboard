@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lesson 9: What a BFF Is Made Of</title>
+  <link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body>
+
+<nav class="lesson-nav" aria-label="Lesson navigation">
+  <a href="./index.html" class="lesson-nav-index">All lessons</a>
+  <a href="./0008-one-or-two-bffs.html" class="lesson-nav-prev">← Lesson 8: One or two</a>
+  <a href="../reference/bff-anatomy.html" class="lesson-nav-next">Anatomy cheat sheet →</a>
+</nav>
+
+<h1>Lesson 9: What a BFF Is Made Of</h1>
+
+<p><strong>Goal:</strong> Name the parts every ODH BFF has, then mark which parts the CR path and OpenShell can share as a <em>pattern</em> — and which parts must stay unique.</p>
+
+<div class="callout callout-info">
+  <strong>Primary sources:</strong>
+  real CR BFF in <a href="https://github.com/opendatahub-io/odh-dashboard/tree/main/packages/agent-ops/bff"><code>packages/agent-ops/bff/</code></a>
+  (see <code>cmd/main.go</code>, <code>internal/api/app.go</code>),
+  the shared recipe in <a href="https://github.com/opendatahub-io/odh-dashboard/blob/main/.claude/rules/bff-go.md"><code>.claude/rules/bff-go.md</code></a>,
+  and <a href="https://github.com/d0w/openshell-bff-examples">openshell-bff-examples</a> for the OpenShell-shaped server.
+</div>
+
+<h2>The sandwich</h2>
+
+<p>Think of a BFF as a sandwich.</p>
+
+<ul>
+  <li><strong>Bread</strong> = the shell: port, health check, logs, CORS, “read the token header.” Every kitchen uses bread. Same <em>shape</em>, different labels (port numbers, URL prefixes).</li>
+  <li><strong>Filling</strong> = the domain: which backend you call, which JSON you return, which permission check you run. CR filling is Kubernetes. OpenShell filling is the gateway.</li>
+</ul>
+
+<p>Your instinct (“ports, API connect, rules — can we group those?”) is right for the <em>bread</em>. It is wrong for the <em>filling</em>. Sharing filling is how you accidentally make the OpenShell BFF do SAR against Sandbox CRs, or make agent-ops speak gRPC.</p>
+
+<div class="analogy-box">
+  <strong>Three kinds of “share”:</strong>
+  <br>1. <strong>Copy the pattern</strong> — same fields, different values (every module’s <code>package.json</code> proxy block).
+  <br>2. <strong>Reuse the library</strong> — import OpenShell’s Go module (Lesson 8 embedding).
+  <br>3. <strong>Do not merge</strong> — one OpenAPI, one K8s client, one SAR middleware for both products.
+</div>
+
+<h2>The stack (outside → inside)</h2>
+
+<p>Green = already a shared ODH pattern. Blue = same idea, different numbers. Red = must stay unique to CR or OpenShell.</p>
+
+<ul class="layer-list">
+  <li class="layer-pattern">
+    <span class="layer-kind">Host · pattern</span><br>
+    <strong>Dashboard proxy</strong> — <code>package.json</code> <code>module-federation.proxy</code>: path, pathRewrite, <code>authorize: true</code>. Agent-ops uses <code>/agent-ops/api</code> → <code>/api</code>. OpenShell uses <code>/_bff/openshell/api</code> → <code>/api</code>. Same machine; two stamps.
+  </li>
+  <li class="layer-pattern">
+    <span class="layer-kind">Host · pattern</span><br>
+    <strong>Ports</strong> — every BFF owns one prod port and one local UI port. Agent-ops prod is <code>8843</code>. OpenShell needs a <em>different</em> number (spike used <code>8943</code> as a stand-in). Never share a port. <code>npm run validate:ports</code> exists so two modules cannot pick the same one.
+  </li>
+  <li class="layer-share">
+    <span class="layer-kind">Process · shared idea</span><br>
+    <strong>HTTP server</strong> — listen on <code>PORT</code>, timeouts, optional TLS, graceful shutdown. agent-ops does this in <code>cmd/main.go</code>. The examples repo does it in <code>server.NewServer</code>. Same job.
+  </li>
+  <li class="layer-share">
+    <span class="layer-kind">Process · shared idea</span><br>
+    <strong>Health</strong> — <code>GET /healthcheck</code> so Kubernetes and contract tests know the process is alive. OpenShell’s spike also had <code>/healthz</code> and <code>/readyz</code> (ready = gateway up). Liveness can look the same; readiness is domain-specific.
+  </li>
+  <li class="layer-share">
+    <span class="layer-kind">Process · shared idea</span><br>
+    <strong>Config flags</strong> — <code>PORT</code>, <code>LOG_LEVEL</code>, <code>ALLOWED_ORIGINS</code>, <code>AUTH_METHOD</code>, <code>AUTH_TOKEN_HEADER</code>, mock switches. Same <em>kinds</em> of knobs. OpenShell adds gateway URL / SDK settings; CR adds <code>MOCK_AGENT_CLIENT</code>.
+  </li>
+  <li class="layer-pattern">
+    <span class="layer-kind">Auth shell · careful</span><br>
+    <strong>Read the token header</strong> — host sets <code>x-forwarded-access-token</code> because <code>authorize: true</code>. Both BFFs <em>read</em> that header. What they <em>do</em> next diverges (next layer).
+  </li>
+  <li class="layer-unique">
+    <span class="layer-kind">Auth filling · unique</span><br>
+    <strong>Rules</strong> — CR path: SubjectAccessReview / impersonation against <code>sandboxes</code> in Kubernetes. OpenShell path: relay the token; the <em>gateway</em> checks workspace RBAC (and wants OIDC, not a raw OpenShift opaque token). Do not reuse agent-ops SAR middleware on OpenShell routes.
+  </li>
+  <li class="layer-unique">
+    <span class="layer-kind">API connect · unique</span><br>
+    <strong>Integrations</strong> — CR: Kubernetes client, list/get/patch Sandbox CRs. OpenShell: Go SDK, gRPC to the gateway. This is the “API connect” you asked about. It is the filling. Two clients, not one generic “talk to cluster” helper.
+  </li>
+  <li class="layer-unique">
+    <span class="layer-kind">Contract · unique</span><br>
+    <strong>OpenAPI + handlers + models</strong> — CR contract is <code>agent-ops.yaml</code> (<code>/api/v1/agents/runtimes</code>…). OpenShell contract is Epic 2’s spec (workspaces, policies…). Two YAML files. Frontends fetch two prefixes. Do not glue them into one spec “to simplify.”
+  </li>
+  <li class="layer-pattern">
+    <span class="layer-kind">Ship · pattern</span><br>
+    <strong>Container + Service</strong> — Deployment <code>containerPort</code>, Service port, probe on health. Same YAML shape as other modules (<a href="../reference/89723-file-checklist.html">89723 checklist</a> / story 89740). Different image, different port.
+  </li>
+</ul>
+
+<div class="diagram">
+HOST (already generalized)
+  package.json  →  proxy + authorize + unique ports
+        │
+        ▼
+BREAD (copy the recipe)
+  listen, logs, CORS, /healthcheck, read token header
+        │
+        ▼
+FILLING (do not merge)
+  CR: K8s + SAR + agent-ops.yaml
+  OS: gRPC SDK + gateway RBAC + OpenShell spec
+</div>
+
+<h2>What is already grouped (you don’t invent this)</h2>
+
+<p>Every federated module in this monorepo already shares the host bread:</p>
+
+<table>
+  <thead>
+    <tr><th>Piece</th><th>Where it lives</th><th>CR today</th><th>OpenShell (plan)</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Proxy</td>
+      <td><code>package.json</code> → host</td>
+      <td><code>/agent-ops/api</code></td>
+      <td><code>/_bff/openshell/api</code></td>
+    </tr>
+    <tr>
+      <td>Prod port</td>
+      <td><code>module-federation.service.port</code></td>
+      <td>8843</td>
+      <td>own port (not 8843)</td>
+    </tr>
+    <tr>
+      <td>Token header</td>
+      <td><code>authorize: true</code></td>
+      <td>same header name</td>
+      <td>same header name</td>
+    </tr>
+    <tr>
+      <td>Alive probe</td>
+      <td>BFF route</td>
+      <td><code>/healthcheck</code></td>
+      <td>healthz/healthcheck</td>
+    </tr>
+    <tr>
+      <td>Contract tests</td>
+      <td><code>@odh-dashboard/contract-tests</code></td>
+      <td>mock flags + OpenAPI</td>
+      <td>same framework, other spec</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>The Go layout in <code>bff-go.md</code> is also a shared recipe: <code>cmd/</code>, <code>internal/api/</code>, <code>config/</code>, <code>integrations/</code>, <code>models/</code>, <code>repositories/</code>. OpenShell’s examples repo names them <code>handlers</code> / <code>services</code> / <code>server</code> — same sandwich, Chi instead of httprouter.</p>
+
+<h2>What you should <em>not</em> generalize</h2>
+
+<table>
+  <thead>
+    <tr><th>Tempting merge</th><th>Why it breaks</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>One OpenAPI for CR + workspaces</td>
+      <td>Two products, two owners, two release clocks. Frontend already uses two prefixes.</td>
+    </tr>
+    <tr>
+      <td>One Kubernetes client for OpenShell admin</td>
+      <td>Admin data lives on the gateway, not in Sandbox CRs. CR list is a different UI.</td>
+    </tr>
+    <tr>
+      <td>SAR middleware on OpenShell routes</td>
+      <td>Wrong permission system. Gateway RBAC ≠ K8s <code>sandboxes</code> verbs.</td>
+    </tr>
+    <tr>
+      <td>Same port “because both are agent”</td>
+      <td>Two processes cannot bind one port. <code>validate:ports</code> will fail, or one BFF never starts.</td>
+    </tr>
+    <tr>
+      <td>Rewrite OpenShell handlers inside agent-ops</td>
+      <td>Spike 81067 rejected this. Use import/decorate (Lesson 8) if you need extra Go behavior.</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="callout callout-warning">
+  <strong>If they later run one process:</strong> you still keep two fillings. One binary can mount two route trees (Chi <code>Option</code> / two <code>httprouter</code> groups). That is packaging, not “one API.” See <a href="./0008-one-or-two-bffs.html">Lesson 8</a>.
+</div>
+
+<h2>Optional extra: BFFs calling each other</h2>
+
+<p>ODH already has an <span class="term">inter-BFF</span> HTTP client (<code>internal/integrations/bffclient</code>, documented in <a href="https://github.com/opendatahub-io/odh-dashboard/blob/main/docs/inter-bff-communication.md">docs/inter-bff-communication.md</a>). That is how two <em>processes</em> share data without merging fillings — Gen-AI calls MaaS, etc.</p>
+
+<p>CR and OpenShell do <strong>not</strong> need that for 89723. Only consider it if a screen must combine “running Sandbox CRs” and “gateway workspaces” in one request. Until then: two prefixes from the browser is enough.</p>
+
+<h2>What this means for you</h2>
+
+<p>On 89723 you configure <strong>host bread</strong>: proxy, ports, mocks. You do not merge Go fillings. Backend stories (89726 / Epic 2) own OpenShell bread+filling. Agent-ops already owns CR filling.</p>
+
+<p>Unclear which layer a meeting is talking about? Ask: “Are we sharing the proxy/port pattern, importing the OpenShell module, or merging Kubernetes into the gateway BFF?”</p>
+
+<p>Ask the teacher (this agent) if a layer still feels like one blob.</p>
+
+<h2>Practice: share or keep unique?</h2>
+
+<div class="quiz">
+  <p class="quiz-question">A. Unique production port numbers for each BFF.</p>
+  <ul class="quiz-options" data-answer="b">
+    <li data-option="a">Merge them so both listen on port 8843</li>
+    <li data-option="b">Copy the pattern; pick two different port numbers</li>
+    <li data-option="c">Delete ports; the host proxy invents them</li>
+    <li data-option="d">Reuse SAR checks instead of using those ports</li>
+  </ul>
+</div>
+
+<div class="quiz">
+  <p class="quiz-question">B. Reading <code>x-forwarded-access-token</code> from the request.</p>
+  <ul class="quiz-options" data-answer="a">
+    <li data-option="a">Same header idea; both BFFs can read it</li>
+    <li data-option="b">Only agent-ops may ever read that header</li>
+    <li data-option="c">Only OpenShell may ever read that header</li>
+    <li data-option="d">The browser must skip that header always</li>
+  </ul>
+</div>
+
+<div class="quiz">
+  <p class="quiz-question">C. Kubernetes SubjectAccessReview on Sandbox CRs.</p>
+  <ul class="quiz-options" data-answer="c">
+    <li data-option="a">Share it as OpenShell's only auth check</li>
+    <li data-option="b">Share it as host proxy only auth check</li>
+    <li data-option="c">Keep it on the CR path only</li>
+    <li data-option="d">Run that SAR only inside React components</li>
+  </ul>
+</div>
+
+<div class="quiz">
+  <p class="quiz-question">D. OpenAPI YAML for runtimes vs workspaces.</p>
+  <ul class="quiz-options" data-answer="d">
+    <li data-option="a">Merge both products into one YAML file</li>
+    <li data-option="b">Delete YAML; let handlers invent JSON shapes</li>
+    <li data-option="c">Store both specs only inside the gateway</li>
+    <li data-option="d">Keep two contracts; two prefixes; two owners</li>
+  </ul>
+</div>
+
+<h2>Quiz</h2>
+
+<div class="quiz">
+  <p class="quiz-question">1. The “bread” of a BFF is mainly:</p>
+  <ul class="quiz-options" data-answer="a">
+    <li data-option="a">Port, health, logs, CORS, token header</li>
+    <li data-option="b">Sandbox CRs, gRPC, SAR, workspace RBAC</li>
+    <li data-option="c">PatternFly tables, routes, and feature flags</li>
+    <li data-option="d">Jira epics, stories, blockers, plus tracks</li>
+  </ul>
+</div>
+
+<div class="quiz">
+  <p class="quiz-question">2. “API connect” for CR vs OpenShell should be:</p>
+  <ul class="quiz-options" data-answer="c">
+    <li data-option="a">One Kubernetes client shared by both fillings</li>
+    <li data-option="b">One gRPC client shared by both fillings</li>
+    <li data-option="c">Two clients: K8s for CR, SDK for gateway</li>
+    <li data-option="d">No clients; the browser calls both backends</li>
+  </ul>
+</div>
+
+<div class="quiz">
+  <p class="quiz-question">3. Host <code>package.json</code> proxy blocks are:</p>
+  <ul class="quiz-options" data-answer="b">
+    <li data-option="a">Filling you merge into one OpenAPI spec</li>
+    <li data-option="b">A repeated pattern with different path values</li>
+    <li data-option="c">Allowed only inside that agent-ops package.json file</li>
+    <li data-option="d">Replaced by SAR checks inside the gateway</li>
+  </ul>
+</div>
+
+<div class="quiz">
+  <p class="quiz-question">4. Why not put OpenShell routes on port 8843?</p>
+  <ul class="quiz-options" data-answer="d">
+    <li data-option="a">Kubernetes forbids any listen port except 8080</li>
+    <li data-option="b">OpenAPI files cannot mention any numeric ports</li>
+    <li data-option="c">React cannot fetch two different URL prefixes</li>
+    <li data-option="d">Two processes cannot share one listen port</li>
+  </ul>
+</div>
+
+<div class="quiz">
+  <p class="quiz-question">5. Ticket 89723 mostly configures which layer?</p>
+  <ul class="quiz-options" data-answer="a">
+    <li data-option="a">Host bread: proxy, ports, and mock replies</li>
+    <li data-option="b">CR filling: Sandbox create and SAR checks</li>
+    <li data-option="c">Gateway filling: gRPC SDK and workspace RBAC</li>
+    <li data-option="d">Operator only: DSC gates with no proxy</li>
+  </ul>
+</div>
+
+<script src="../assets/quiz.js"></script>
+
+<h2>Read next</h2>
+
+<ol>
+  <li><a href="../reference/bff-anatomy.html">Anatomy cheat sheet</a> — print the layer table.</li>
+  <li>Skim <code>packages/agent-ops/bff/cmd/main.go</code> flags, then <code>Routes()</code> in <code>internal/api/app.go</code>.</li>
+  <li><a href="./0008-one-or-two-bffs.html">Lesson 8</a> if “one process vs two fillings” is still fuzzy.</li>
+</ol>
+
+<nav class="lesson-nav lesson-nav-footer" aria-label="Lesson navigation">
+  <a href="./0008-one-or-two-bffs.html" class="lesson-nav-prev">← Lesson 8</a>
+  <a href="./index.html" class="lesson-nav-index">All lessons</a>
+  <a href="../reference/bff-anatomy.html" class="lesson-nav-next">Cheat sheet →</a>
+</nav>
+
+</body>
+</html>

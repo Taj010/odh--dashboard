@@ -26,6 +26,20 @@
 
 ## External Resources
 
+### BFF architecture (OpenShell / Agent Ops)
+- [GitHub: d0w/openshell-bff-examples](https://github.com/d0w/openshell-bff-examples)
+  Three Go modules: `upstream`, `downstream-reuse` (100% import), `downstream-partialreuse` (embed + extra routes). Use when: 1 vs 2 BFFs, decorating OpenShell from ODH.
+- [Effective Go — Embedding](https://go.dev/doc/effective_go#embedding)
+  Why Go can override one method and keep the rest. Use when: reading the examples’ `Service` struct.
+- [go-chi/chi](https://github.com/go-chi/chi)
+  Router the migration proposal uses (`server.Option` gets a `chi.Router`). Current agent-ops BFF still uses httprouter.
+- [agent-ops BFF README](../packages/agent-ops/bff/README.md)
+  CR-path BFF: Sandbox CRs, port 8843, SAR. Use for: contrasting with the gateway path.
+- [BFF Go rules](../.claude/rules/bff-go.md)
+  Shared directory layout, flags, auth methods, error envelope. Use for: “what every BFF contains.”
+- [Inter-BFF communication](../docs/inter-bff-communication.md)
+  How two BFF processes call each other over HTTP. Use for: sharing data without merging fillings.
+
 ### Jira (To Be Added)
 - [ ] RFE link
 - [ ] Strategy link  
@@ -39,6 +53,7 @@
 | Go BFF | https://go.dev/doc/ | Backend language |
 | OpenAPI | https://swagger.io/specification/ | API specification |
 | Module Federation | https://module-federation.io/ | Micro-frontend architecture |
+| Chi | https://github.com/go-chi/chi | Router in the OpenShell BFF reuse proposal (agent-ops still uses httprouter) |
 
 ## Learning Path Order
 
