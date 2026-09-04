@@ -1,0 +1,44 @@
+{
+  "private": true,
+  "name": "@odh-dashboard/openshell",
+  "description": "OpenShell sandboxed workspace plugin.",
+  "version": "0.0.0",
+  "module-federation": {
+    "name": "openShell",
+    "remoteEntry": "/remoteEntry.js",
+    "authorize": true,
+    "tls": false,
+    "proxy": [
+      {
+        "path": "/_bff/openshell/api",
+        "pathRewrite": "/api"
+      }
+    ],
+    "local": {
+      "host": "localhost",
+      "port": 9113
+    },
+    "service": {
+      "name": "odh-dashboard",
+      "port": 8943
+    }
+  },
+  "exports": {
+    "./extensions": "./extensions.ts"
+  },
+  "scripts": {
+    "install:module": "npm install --prefix frontend",
+    "lint": "cd frontend && npm run lint",
+    "lint:fix": "cd frontend && npm run lint:fix"
+  },
+  "dependencies": {
+    "@odh-dashboard/internal": "*",
+    "@odh-dashboard/plugin-core": "*",
+    "@odh-dashboard/ui-core": "*"
+  },
+  "devDependencies": {
+    "@odh-dashboard/app-config": "*",
+    "@odh-dashboard/eslint-config": "*",
+    "@odh-dashboard/tsconfig": "*"
+  }
+}

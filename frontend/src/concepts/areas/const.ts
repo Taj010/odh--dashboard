@@ -34,6 +34,7 @@ export const techPreviewFlags = {
 export const devTemporaryFeatureFlags = {
   disableKueue: true,
   disableProjectScoped: true,
+  disableOpenShell: true,
   nimWizard: false,
   nimServiceOperator: false,
   agentOpsDeploy: false,
@@ -252,6 +253,9 @@ export const SupportedAreasStateMap: SupportedAreasState = {
   [SupportedArea.AGENTS_CATALOG]: {
     featureFlags: ['agentsCatalog'],
     requiredComponents: [DataScienceStackComponent.MODEL_REGISTRY],
+  },
+  [SupportedArea.AGENTS_OPENSHELL]: {
+    featureFlags: ['disableOpenShell'],
   },
   [SupportedArea.MLFLOW]: {
     requiredComponents: [DataScienceStackComponent.MLFLOW],

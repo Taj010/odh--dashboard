@@ -108,6 +108,9 @@ export enum SupportedArea {
   /* Agents catalog */
   AGENTS_CATALOG = 'agents-catalog',
 
+  /* OpenShell */
+  AGENTS_OPENSHELL = 'agents-openshell',
+
   /* MLflow */
   MLFLOW = 'mlflow',
   MLFLOW_PIPELINES = 'mlflow-pipelines',

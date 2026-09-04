@@ -324,6 +324,7 @@ export type DashboardCommonConfig = {
   modelCapabilities?: boolean;
   workbenchesV2?: boolean;
   dataRegistry?: boolean;
+  disableOpenShell?: boolean;
 };
 
 export type DashboardConfigKind = K8sResourceCommon & {
