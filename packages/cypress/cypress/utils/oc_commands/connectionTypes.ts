@@ -1,6 +1,6 @@
 import type { CommandLineResult } from '../../types';
 
-const applicationNamespace = Cypress.env('APPLICATIONS_NAMESPACE');
+const applicationNamespace = Cypress.env('APPLICATIONS_NAMESPACE') || 'redhat-ods-applications';
 
 /**
  * `deleteConnectionTypeByName` deletes a Connection Type ConfigMap by its exact name.
