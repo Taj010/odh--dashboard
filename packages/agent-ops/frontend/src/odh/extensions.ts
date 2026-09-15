@@ -27,7 +27,7 @@ const extensions: (AreaExtension | TabRouteTabExtension | RouteExtension)[] = [
       pageId: AGENTS_TAB_PAGE,
       id: 'workspaces',
       title: 'Workspaces',
-      component: () => import('./OpenShellWrapper.tsx'),
+      component: () => import('~/app/openShell/OpenShellRoutes.tsx'),
       group: '1_workspaces',
     },
   },
@@ -38,7 +38,7 @@ const extensions: (AreaExtension | TabRouteTabExtension | RouteExtension)[] = [
     },
     properties: {
       path: agentOpsWorkspacesDetailPath,
-      component: () => import('./OpenShellDetailRoutes.tsx'),
+      component: () => import('~/app/openShell/OpenShellDetailRoutes.tsx'),
     },
   },
 ];
