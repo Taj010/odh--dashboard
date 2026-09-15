@@ -316,7 +316,6 @@ export type DashboardCommonConfig = {
   nimServiceOperator?: boolean;
   mySubscriptions?: boolean;
   agentOps?: boolean;
-  agentOpsDeploy?: boolean;
   agentsCatalog?: boolean;
   roleManagement?: boolean;
   gpuaas?: boolean;

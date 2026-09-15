@@ -67,7 +67,6 @@ export type MockDashboardConfigType = {
   nimWizard?: boolean;
   nimServiceOperator?: boolean;
   agentOps?: boolean;
-  agentOpsDeploy?: boolean;
   agentsCatalog?: boolean;
   roleManagement?: boolean;
   gpuaas?: boolean;
@@ -141,7 +140,6 @@ export const mockDashboardConfig = ({
   nimWizard = false,
   nimServiceOperator = false,
   agentOps = false,
-  agentOpsDeploy = false,
   agentsCatalog = false,
   roleManagement = true,
   gpuaas = true,
@@ -338,7 +336,6 @@ export const mockDashboardConfig = ({
       nimWizard,
       nimServiceOperator,
       agentOps,
-      agentOpsDeploy,
       agentsCatalog,
       roleManagement,
       gpuaas,

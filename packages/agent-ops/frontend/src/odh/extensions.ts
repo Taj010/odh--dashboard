@@ -4,9 +4,6 @@ import type {
   TabRouteTabExtension,
 } from '@odh-dashboard/plugin-core/extension-points';
 
-// Keep in sync with ~/app/utilities/routes.ts (value imports are disallowed in extensions.ts).
-const agentDeploymentsPath = '/ai-hub/agents/deployments';
-const agentDeployWizardPath = `${agentDeploymentsPath}/deploy`;
 // Must match `${agentOpsWorkspacesPath}/:workspaceId/*` in ~/app/utilities/routes.ts.
 const agentOpsWorkspacesDetailPath = '/ai-hub/agents/workspaces/:workspaceId/*';
 
@@ -19,13 +16,6 @@ const extensions: (AreaExtension | TabRouteTabExtension | RouteExtension)[] = [
     properties: {
       id: AGENT_OPS,
       featureFlags: ['agentOps'],
-    },
-  },
-  {
-    type: 'app.area',
-    properties: {
-      id: 'agent-ops-deploy',
-      featureFlags: ['agentOpsDeploy'],
     },
   },
   {
@@ -49,27 +39,6 @@ const extensions: (AreaExtension | TabRouteTabExtension | RouteExtension)[] = [
     properties: {
       path: agentOpsWorkspacesDetailPath,
       component: () => import('./OpenShellDetailRoutes.tsx'),
-    },
-  },
-  // Deployments tab and breakout routes stay gated on agentOpsDeploy (hidden until follow-up).
-  {
-    type: 'app.route',
-    flags: {
-      required: [AGENT_OPS, 'agent-ops-deploy'],
-    },
-    properties: {
-      path: `${agentDeploymentsPath}/:namespace/:agentId/*`,
-      component: () => import('./AgentDeploymentDetailRoutes.tsx'),
-    },
-  },
-  {
-    type: 'app.route',
-    flags: {
-      required: [AGENT_OPS, 'agent-ops-deploy'],
-    },
-    properties: {
-      path: agentDeployWizardPath,
-      component: () => import('./AgentDeployWizardRoutes.tsx'),
     },
   },
 ];

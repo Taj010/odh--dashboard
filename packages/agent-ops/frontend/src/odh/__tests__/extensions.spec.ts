@@ -1,33 +1,18 @@
-import type { RouteExtension } from '@odh-dashboard/plugin-core/extension-points';
 import extensions from '~/odh/extensions';
 import {
-  agentDeployWizardPath,
-  agentDeploymentsPath,
-  agentOpsDeploymentDetailRoute,
   agentOpsSandboxDetailPath,
   agentOpsWorkspaceDetailPath,
   agentOpsWorkspacesPath,
 } from '~/app/utilities/routes';
 
 const AGENT_OPS = 'agent-ops';
-const AGENT_OPS_DEPLOY = 'agent-ops-deploy';
-
-const getDeployRouteExtensions = (): RouteExtension[] =>
-  extensions.filter(
-    (extension): extension is RouteExtension =>
-      extension.type === 'app.route' &&
-      Boolean(extension.flags?.required?.includes(AGENT_OPS_DEPLOY)),
-  );
 
 describe('agent-ops extensions', () => {
   it('should register area, tab-route tab, and route extensions', () => {
-    expect(extensions).toHaveLength(6);
+    expect(extensions).toHaveLength(3);
     expect(extensions.map((extension) => extension.type)).toEqual([
       'app.area',
-      'app.area',
       'app.tab-route/tab',
-      'app.route',
-      'app.route',
       'app.route',
     ]);
   });
@@ -41,19 +26,6 @@ describe('agent-ops extensions', () => {
       properties: {
         id: AGENT_OPS,
         featureFlags: ['agentOps'],
-      },
-    });
-  });
-
-  it('should register the deploy mode area with feature flag', () => {
-    const area = extensions.find(
-      (extension) => extension.type === 'app.area' && extension.properties.id === AGENT_OPS_DEPLOY,
-    );
-    expect(area).toMatchObject({
-      type: 'app.area',
-      properties: {
-        id: AGENT_OPS_DEPLOY,
-        featureFlags: ['agentOpsDeploy'],
       },
     });
   });
@@ -92,38 +64,11 @@ describe('agent-ops extensions', () => {
     ).toBeTruthy();
   });
 
-  it('standalone deploy route paths match routes.ts constants', () => {
-    const paths = getDeployRouteExtensions().map((extension) => extension.properties.path);
-    expect(paths).toContain(agentDeployWizardPath);
-    expect(paths).toContain(`${agentDeploymentsPath}/:namespace/:agentId/*`);
-  });
-
-  it('should register deploy breakout routes gated on agentOpsDeploy', () => {
-    const routes = getDeployRouteExtensions();
-    expect(routes).toHaveLength(2);
-    expect(routes.map((route) => route.properties.path)).toEqual([
-      `${agentDeploymentsPath}/:namespace/:agentId/*`,
-      agentDeployWizardPath,
-    ]);
-    routes.forEach((route) => {
-      expect(route).toMatchObject({
-        type: 'app.route',
-        flags: {
-          required: [AGENT_OPS, AGENT_OPS_DEPLOY],
-        },
-      });
-      expect(route.properties.component).toBeTruthy();
-    });
-  });
-
   it('should keep extension route paths in sync with utilities/routes.ts', () => {
     expect(agentOpsWorkspacesPath).toBe('/ai-hub/agents/workspaces');
     expect(agentOpsWorkspaceDetailPath('team1')).toBe('/ai-hub/agents/workspaces/team1');
     expect(agentOpsSandboxDetailPath('team1', 'sandbox-a')).toBe(
       '/ai-hub/agents/workspaces/team1/sandboxes/sandbox-a',
-    );
-    expect(agentOpsDeploymentDetailRoute('team1', 'my-agent')).toBe(
-      `${agentDeploymentsPath}/team1/my-agent`,
     );
   });
 });

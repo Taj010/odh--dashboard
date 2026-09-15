@@ -1,10 +1,8 @@
 import {
-  agentOpsDeploymentsRoute,
   agentOpsSandboxDetailPath,
   agentOpsWorkspaceDetailPath,
   agentOpsWorkspacesPath,
   isSafeAgentOpsInternalRoute,
-  sanitizeAgentOpsReturnRoute,
 } from '~/app/utilities/routes';
 
 describe('agent-ops routes', () => {
@@ -17,8 +15,20 @@ describe('agent-ops routes', () => {
   });
 
   describe('isSafeAgentOpsInternalRoute', () => {
-    it('accepts valid agent-ops paths', () => {
-      expect(isSafeAgentOpsInternalRoute('/ai-hub/agents/deployments/team1')).toBe(true);
+    it('accepts valid workspace paths', () => {
+      expect(isSafeAgentOpsInternalRoute('/ai-hub/agents/workspaces')).toBe(true);
+      expect(isSafeAgentOpsInternalRoute('/ai-hub/agents/workspaces/team1')).toBe(true);
+      expect(
+        isSafeAgentOpsInternalRoute('/ai-hub/agents/workspaces/team1/sandboxes/sandbox-a'),
+      ).toBe(true);
+    });
+
+    it('accepts the agents root path', () => {
+      expect(isSafeAgentOpsInternalRoute('/ai-hub/agents')).toBe(true);
+    });
+
+    it('rejects legacy deployment paths', () => {
+      expect(isSafeAgentOpsInternalRoute('/ai-hub/agents/deployments/team1')).toBe(false);
     });
 
     it('rejects external URLs', () => {
@@ -30,16 +40,16 @@ describe('agent-ops routes', () => {
     });
 
     it('rejects path traversal segments', () => {
-      expect(isSafeAgentOpsInternalRoute('/ai-hub/agents/deployments/foo/../../other')).toBe(false);
+      expect(isSafeAgentOpsInternalRoute('/ai-hub/agents/workspaces/foo/../../other')).toBe(false);
     });
 
     it('rejects backslash path segments', () => {
-      expect(isSafeAgentOpsInternalRoute('/ai-hub/agents\\deployments')).toBe(false);
+      expect(isSafeAgentOpsInternalRoute('/ai-hub/agents\\workspaces')).toBe(false);
     });
 
     it('rejects control characters before URL parsing', () => {
-      expect(isSafeAgentOpsInternalRoute('/ai-hub/agents/deployments/team1\n/evil')).toBe(false);
-      expect(isSafeAgentOpsInternalRoute('/ai-hub/agents/deployments\tteam1')).toBe(false);
+      expect(isSafeAgentOpsInternalRoute('/ai-hub/agents/workspaces/team1\n/evil')).toBe(false);
+      expect(isSafeAgentOpsInternalRoute('/ai-hub/agents/workspaces\tteam1')).toBe(false);
     });
 
     it('rejects non-string values', () => {
@@ -51,23 +61,9 @@ describe('agent-ops routes', () => {
         throw new TypeError('Invalid URL');
       });
 
-      expect(isSafeAgentOpsInternalRoute('/ai-hub/agents/deployments/team1')).toBe(false);
+      expect(isSafeAgentOpsInternalRoute('/ai-hub/agents/workspaces/team1')).toBe(false);
 
       urlSpy.mockRestore();
-    });
-  });
-
-  describe('sanitizeAgentOpsReturnRoute', () => {
-    it('returns safe route unchanged', () => {
-      expect(sanitizeAgentOpsReturnRoute('/ai-hub/agents/deployments/team1', 'team1')).toBe(
-        '/ai-hub/agents/deployments/team1',
-      );
-    });
-
-    it('falls back to deployments route for unsafe paths', () => {
-      expect(sanitizeAgentOpsReturnRoute('https://evil.com', 'team1')).toBe(
-        agentOpsDeploymentsRoute('team1'),
-      );
     });
   });
 });

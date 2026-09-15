@@ -37,7 +37,6 @@ export const devTemporaryFeatureFlags = {
   disableProjectScoped: true,
   nimWizard: false,
   nimServiceOperator: false,
-  agentOpsDeploy: false,
   agentsCatalog: false,
   workbenchesV2: false,
 } satisfies Partial<DashboardCommonConfig>;
@@ -246,9 +245,6 @@ export const SupportedAreasStateMap: SupportedAreasState = {
   },
   [SupportedArea.AGENT_OPS]: {
     featureFlags: ['agentOps'],
-  },
-  [SupportedArea.AGENT_OPS_DEPLOY]: {
-    featureFlags: ['agentOpsDeploy'],
   },
   [SupportedArea.AGENTS_CATALOG]: {
     featureFlags: ['agentsCatalog'],
