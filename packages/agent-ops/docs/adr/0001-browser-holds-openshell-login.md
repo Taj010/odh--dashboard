@@ -1,0 +1,3 @@
+# Browser holds the OpenShell login
+
+OpenShell needs its own login, separate from the dashboard login. For this release the browser holds that login in memory for the life of the page. A reload or a new tab starts the login again. While the same page stays open, a login that is about to run out is renewed for that gateway. A failed renewal drops that gateway's login. A backend-held session was the alternative; we are not building it unless security review rejects in-memory custody. Production stays off until that review accepts the risk: memory stops someone from stealing a saved login, but any script on the dashboard site can start the same login while the identity-provider session is still open.

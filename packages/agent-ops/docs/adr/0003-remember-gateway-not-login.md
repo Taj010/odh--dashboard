@@ -1,0 +1,3 @@
+# Remember the gateway, not the login
+
+A gateway is selected the same way a project is selected: a dropdown that lists the gateways and shows which one is selected, the id in the address, and a remembered last choice when the address names no gateway. That remembered id is not a secret. The OpenShell login is not remembered. Choosing another gateway in the dropdown does not start a login and does not drop a login that is already held for a different gateway. Connect is a separate click and is the only way to start a login for the selected gateway. Starting the login when the person changes the gateway was the alternative. That would send them to the identity provider just for switching, which the project switcher does not do.
